@@ -9,6 +9,7 @@ import {
   deleteListing,
   fetchCars,
   fetchFavorites,
+  fetchWatchlist,
   fetchDealers,
   fetchMakes,
   fetchMyListings,
@@ -19,6 +20,7 @@ import {
   handleListingAssistantMessage,
   MyListingsAnalytics,
   removeFavorite,
+  removeFromWatchlist,
   semanticSearch,
   updateListing,
   uploadListingImage,
@@ -547,6 +549,8 @@ export function AppView() {
   const [dealersLoading, setDealersLoading] = useState(false);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [favoriteCars, setFavoriteCars] = useState<Car[]>([]);
+  const [watchlistCars, setWatchlistCars] = useState<Car[]>([]);
+  const [favoritesSubTab, setFavoritesSubTab] = useState<'favorites' | 'watchlist'>('favorites');
   const [myListings, setMyListings] = useState<Car[]>([]);
   const [myListingsAnalytics, setMyListingsAnalytics] = useState<MyListingsAnalytics | null>(null);
   const [myListingsAnalyticsLoading, setMyListingsAnalyticsLoading] = useState(false);
@@ -857,6 +861,10 @@ export function AppView() {
 
   const getCarImage = useCallback(
     (car: Car) => {
+      // Check for image_url first (database column name)
+      if ((car as any).image_url) {
+        return resolveImageUrl((car as any).image_url);
+      }
       if (car.image) {
         return resolveImageUrl(car.image);
       }
@@ -933,6 +941,7 @@ export function AppView() {
     if (!token) {
       setFavorites([]);
       setFavoriteCars([]);
+      setWatchlistCars([]);
       setMyListings([]);
       setMyListingsAnalytics(null);
       return;
@@ -940,14 +949,19 @@ export function AppView() {
 
     async function hydrateAuthorizedData() {
       try {
-        const [favoritesResponse, listingsResponse] = await Promise.all([
+        const [favoritesResponse, watchlistResponse, listingsResponse] = await Promise.all([
           fetchFavorites(token),
+          fetchWatchlist(token),
           fetchMyListings(token),
         ]);
         if (favoritesResponse.success) {
           const favCars = favoritesResponse.cars || [];
           setFavoriteCars(favCars);
           setFavorites(favCars.map((car) => car.id));
+        }
+        if (watchlistResponse.success) {
+          const watchCars = watchlistResponse.cars || [];
+          setWatchlistCars(watchCars);
         }
         if (listingsResponse.success) {
           setMyListings(listingsResponse.cars || []);
@@ -2480,9 +2494,111 @@ export function AppView() {
         );
       case 'favorites':
         return (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {favoriteCars.map((car) => renderCarCard(car))}
-            {favoriteCars.length === 0 && <p className="text-slate-500">{copy.noFavorites}</p>}
+          <div className="space-y-6">
+            {/* Tab Navigation */}
+            <div className="flex gap-2 border-b border-slate-200 pb-2">
+              <button
+                onClick={() => setFavoritesSubTab('favorites')}
+                className={`px-6 py-2 text-sm font-semibold rounded-t-xl transition ${favoritesSubTab === 'favorites'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+              >
+                Favorites ({favoriteCars.length})
+              </button>
+              <button
+                onClick={() => setFavoritesSubTab('watchlist')}
+                className={`px-6 py-2 text-sm font-semibold rounded-t-xl transition ${favoritesSubTab === 'watchlist'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+              >
+                Watchlist ({watchlistCars.length})
+              </button>
+            </div>
+
+            {/* Tab Content */}
+            {favoritesSubTab === 'favorites' ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {favoriteCars.map((car) => renderCarCard(car))}
+                {favoriteCars.length === 0 && (
+                  <div className="col-span-full rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+                    <p className="text-slate-500">{copy.noFavorites}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {watchlistCars.map((car) => (
+                  <div key={car.id} className="flex flex-col rounded-3xl border border-slate-100 bg-white/90 p-4 shadow hover:shadow-lg transition-shadow">
+                    <div className="relative overflow-hidden rounded-2xl bg-slate-100">
+                      <img
+                        src={getCarImage(car)}
+                        alt={`${car.make} ${car.model}`}
+                        loading="lazy"
+                        onError={(event) => {
+                          const img = event.currentTarget;
+                          if (img.src.includes('placeholder-car.svg')) return;
+                          img.src = '/placeholder-car.svg';
+                        }}
+                        className="h-48 w-full object-cover"
+                      />
+                    </div>
+                    <div className="mt-4 flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-semibold text-slate-900">{car.make} {car.model}</h3>
+                        <p className="text-sm text-slate-500">{car.year || 'Year TBD'}</p>
+                      </div>
+                      <div className="text-right text-2xl font-bold text-emerald-600">
+                        {formatPrice(car.price, car.currency)}
+                      </div>
+                    </div>
+                    {car.specs?.bodyStyle && (
+                      <p className="text-sm text-slate-600">{car.specs.bodyStyle}</p>
+                    )}
+                    <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
+                      {car.rating ? <span>⭐ {car.rating.toFixed(1)}</span> : null}
+                      {car.reviews ? <span>{car.reviews} reviews</span> : null}
+                      {car.galleryImages?.length ? <span>{car.galleryImages.length} photos</span> : null}
+                      {car.videoUrl ? <span>🎥 Video</span> : null}
+                      {car.odometerKm ? <span>{car.odometerKm.toLocaleString()} km</span> : null}
+                    </div>
+                    {car.description && (
+                      <p className="mt-3 line-clamp-3 text-sm text-slate-600">{car.description}</p>
+                    )}
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        className="flex-1 rounded-xl bg-sky-600 py-2 text-sm font-semibold text-white hover:bg-sky-700"
+                        onClick={() => handleOpenCarDetails(car.id)}
+                      >
+                        {copy.listingViewDetails}
+                      </button>
+                      <button
+                        className="rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50 transition"
+                        onClick={async () => {
+                          if (!token) return;
+                          try {
+                            await removeFromWatchlist(car.id, token);
+                            setWatchlistCars(watchlistCars.filter(c => c.id !== car.id));
+                            showToast('Removed from watchlist', 'success');
+                          } catch (err) {
+                            console.error('Failed to remove from watchlist:', err);
+                            showToast('Failed to remove from watchlist', 'error');
+                          }
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {watchlistCars.length === 0 && (
+                  <div className="col-span-full rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+                    <p className="text-slate-500">No cars in your watchlist yet. Add cars you're interested in!</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       case 'dealers':

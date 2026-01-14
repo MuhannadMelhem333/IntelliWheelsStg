@@ -1,6 +1,6 @@
 import { API_BASE_URL } from './config';
 import {
-// REMOVED: import { MOCK_CARS } from './mockData' - no synthetic data fallbacks
+  // REMOVED: import { MOCK_CARS } from './mockData' - no synthetic data fallbacks
   AnalyticsInsights,
   Car,
   CarFilters,
@@ -57,10 +57,10 @@ async function apiRequest<T = any>(path: string, options: RequestOptions<T> = {}
         method === 'GET'
           ? undefined
           : isFormData
-          ? (body as BodyInit)
-          : body !== undefined
-          ? JSON.stringify(body)
-          : undefined,
+            ? (body as BodyInit)
+            : body !== undefined
+              ? JSON.stringify(body)
+              : undefined,
     });
   } catch (error) {
     // Silently handle aborted requests (e.g., component unmount)
@@ -390,6 +390,26 @@ export async function deleteReview(reviewId: number, token: string | null) {
 
 export async function fetchMyReviews(token: string | null) {
   return apiRequest<{ success: boolean; reviews: Array<Review & { car: { make: string; model: string; year?: number; image?: string } }> }>(`/reviews/user/me`, {
+    token,
+  });
+}
+
+// Watchlist API
+export async function fetchWatchlist(token: string | null) {
+  return apiRequest<{ success: boolean; cars: Car[] }>(`/watchlist`, { token });
+}
+
+export async function addToWatchlist(carId: number, token: string | null) {
+  return apiRequest<{ success: boolean; message: string }>(`/watchlist`, {
+    method: 'POST',
+    token,
+    body: { car_id: carId },
+  });
+}
+
+export async function removeFromWatchlist(carId: number, token: string | null) {
+  return apiRequest<{ success: boolean; message: string }>(`/watchlist/${carId}`, {
+    method: 'DELETE',
     token,
   });
 }

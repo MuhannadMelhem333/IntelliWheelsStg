@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/context/AuthContext';
-import { fetchCarById, fetchCarReviews, submitReview, deleteReview, fetchFavorites, addFavorite, removeFavorite } from '@/lib/api';
+import { fetchCarById, fetchCarReviews, submitReview, deleteReview, fetchFavorites, addFavorite, removeFavorite, addToWatchlist, removeFromWatchlist } from '@/lib/api';
 import { Car, Review, ReviewStats } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -700,13 +700,30 @@ export function CarDetailView({ carId }: CarDetailViewProps) {
                   Request callback
                 </button>
                 <button
-                  onClick={() => {
-                    // Show toast notification
-                    const toast = document.createElement('div');
-                    toast.className = 'fixed top-4 right-4 z-50 rounded-xl bg-emerald-600 px-6 py-3 text-white shadow-lg';
-                    toast.textContent = '✓ Added to your watchlist!';
-                    document.body.appendChild(toast);
-                    setTimeout(() => toast.remove(), 3000);
+                  onClick={async () => {
+                    if (!token) {
+                      const toast = document.createElement('div');
+                      toast.className = 'fixed top-4 right-4 z-50 rounded-xl bg-rose-600 px-6 py-3 text-white shadow-lg';
+                      toast.textContent = '⚠️ Please sign in to add to watchlist';
+                      document.body.appendChild(toast);
+                      setTimeout(() => toast.remove(), 3000);
+                      return;
+                    }
+                    try {
+                      await addToWatchlist(numericId, token);
+                      const toast = document.createElement('div');
+                      toast.className = 'fixed top-4 right-4 z-50 rounded-xl bg-emerald-600 px-6 py-3 text-white shadow-lg';
+                      toast.textContent = '✓ Added to your watchlist!';
+                      document.body.appendChild(toast);
+                      setTimeout(() => toast.remove(), 3000);
+                    } catch (err) {
+                      console.error('Failed to add to watchlist:', err);
+                      const toast = document.createElement('div');
+                      toast.className = 'fixed top-4 right-4 z-50 rounded-xl bg-rose-600 px-6 py-3 text-white shadow-lg';
+                      toast.textContent = '✗ Failed to add to watchlist';
+                      document.body.appendChild(toast);
+                      setTimeout(() => toast.remove(), 3000);
+                    }
                   }}
                   className="w-full rounded-2xl border border-slate-200 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 transition"
                 >
