@@ -1,0 +1,28 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "npm: dev server",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"--prefix",
+				".",
+				"dev"
+			],
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Run Backend",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"IntelliWheels_Enhanced/backend/run.py"
+			],
+			"isBackground": true,
+			"problemMatcher": []
+		}
+	]
+}
