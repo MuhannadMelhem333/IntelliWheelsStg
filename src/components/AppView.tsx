@@ -2053,8 +2053,8 @@ export function AppView() {
               <div
                 key={session.id}
                 className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${session.id === activeSessionId
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-slate-600 hover:bg-slate-50'
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'text-slate-600 hover:bg-slate-50'
                   }`}
               >
                 <button
@@ -2161,8 +2161,8 @@ export function AppView() {
                   <div className={`max-w-[80%] ${msg.role === 'user' ? 'text-right' : ''}`}>
                     <div
                       className={`inline-block rounded-2xl px-4 py-3 ${msg.role === 'user'
-                          ? 'bg-slate-700 text-white'
-                          : 'bg-slate-100 text-slate-800'
+                        ? 'bg-slate-700 text-white'
+                        : 'bg-slate-100 text-slate-800'
                         }`}
                     >
                       <p className="whitespace-pre-line text-sm leading-relaxed">{msg.text}</p>
@@ -3193,36 +3193,35 @@ export function AppView() {
                   </button>
 
                   {settingsOpen && (
-                    <div className={`absolute right-0 top-full mt-4 w-72 origin-top-right overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-2xl ring-1 ring-black/5 dark:border-slate-800 dark:bg-slate-900 z-50`}>
-                      <div className="bg-slate-50 px-6 py-4 dark:bg-slate-800/50">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{copy.settingsTitle}</p>
-                        <p className="text-sm text-slate-400">{copy.settingsSubtitle}</p>
+                    <div className="absolute right-0 top-full mt-4 w-72 origin-top-right overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl ring-1 ring-slate-100 z-50">
+                      <div className="bg-gradient-to-br from-indigo-50 to-sky-50 px-6 py-4 border-b border-slate-100">
+                        <p className="text-xs font-bold uppercase tracking-wider text-indigo-900">{copy.settingsTitle}</p>
+                        <p className="text-sm text-indigo-700">{copy.settingsSubtitle}</p>
                       </div>
                       <div className="p-2">
                         <button
                           onClick={() => { setActivePage('profile'); setSettingsOpen(false); }}
-                          className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800"
+                          className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-slate-50 transition"
                         >
-                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50 text-xl dark:bg-indigo-900/30">👤</span>
+                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-xl">👤</span>
                           <div>
-                            <p className={`font-semibold text-sm ${resolvedTheme === 'dark' ? 'text-slate-200' : 'text-slate-900'}`}>{mounted && user ? copy.settingsProfileCta : copy.settingsProfileGuest}</p>
-                            <p className="text-xs text-slate-500">{mounted && user?.email ? user.email : 'Manage account'}</p>
+                            <p className="font-semibold text-sm text-slate-900">{mounted && user ? copy.settingsProfileCta : copy.settingsProfileGuest}</p>
+                            <p className="text-xs text-slate-600">{mounted && user?.email ? user.email : 'Manage account'}</p>
                           </div>
                         </button>
-                        <div className="my-2 h-px bg-slate-100 dark:bg-slate-800" />
-                        <div className="my-2 h-px bg-slate-100 dark:bg-slate-800" />
+                        <div className="my-2 h-px bg-slate-200" />
                         <div className="space-y-4 px-3 py-2">
                           {/* Language Selector */}
                           <div>
-                            <label className="mb-1 block text-xs font-bold text-slate-500">{copy.settingsLanguage}</label>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">{copy.settingsLanguage}</label>
                             <div className="grid grid-cols-2 gap-2">
                               {LANGUAGE_OPTIONS.map((opt) => (
                                 <button
                                   key={opt.value}
                                   onClick={() => setLanguage(opt.value)}
                                   className={`rounded-lg py-1.5 text-xs font-semibold transition ${language === opt.value
-                                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
-                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400'
+                                    ? 'bg-indigo-600 text-white shadow-md'
+                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                                     }`}
                                 >
                                   {opt.label}
@@ -3233,11 +3232,11 @@ export function AppView() {
 
                           {/* Currency Selector */}
                           <div>
-                            <label className="mb-1 block text-xs font-bold text-slate-500">{copy.settingsCurrency}</label>
+                            <label className="mb-1 block text-xs font-bold text-slate-700">{copy.settingsCurrency}</label>
                             <select
                               value={currency}
                               onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
-                              className="w-full appearance-none rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                              className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                             >
                               {CURRENCY_OPTIONS.map((code) => (
                                 <option key={code} value={code}>{code}</option>
@@ -3247,7 +3246,7 @@ export function AppView() {
 
                           {/* Theme Selector */}
                           <div>
-                            <p className="mb-1 text-xs font-bold text-slate-500">{copy.themeLabel}</p>
+                            <p className="mb-1 text-xs font-bold text-slate-700">{copy.themeLabel}</p>
                             <div className="grid grid-cols-3 gap-2">
                               {THEME_OPTIONS.map((opt) => (
                                 <button
@@ -3255,7 +3254,7 @@ export function AppView() {
                                   onClick={() => setTheme(opt.value)}
                                   className={`rounded-lg py-2 text-xs font-semibold transition ${theme === opt.value
                                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
-                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400'
+                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                                     }`}
                                 >
                                   {copy[opt.labelKey]}
@@ -3266,11 +3265,11 @@ export function AppView() {
                           <div className="mt-2">
                             {!user ? (
                               <div className="grid grid-cols-2 gap-2 p-1">
-                                <button onClick={() => { setActivePage('profile'); setSettingsOpen(false); }} className="rounded-xl border border-slate-200 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">Sign In</button>
-                                <button onClick={() => { setActivePage('profile'); setSettingsOpen(false); }} className="rounded-xl bg-slate-900 py-2.5 text-sm font-bold text-white hover:bg-slate-800">Sign Up</button>
+                                <button onClick={() => { setActivePage('profile'); setSettingsOpen(false); }} className="rounded-xl border border-slate-300 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition">Sign In</button>
+                                <button onClick={() => { setActivePage('profile'); setSettingsOpen(false); }} className="rounded-xl bg-indigo-600 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 transition shadow-md">Sign Up</button>
                               </div>
                             ) : (
-                              <button onClick={() => { logout(); setSettingsOpen(false); }} className="w-full rounded-xl border border-slate-200 py-2.5 text-center text-sm font-bold text-rose-600 hover:bg-rose-50 dark:border-slate-700 dark:hover:bg-rose-900/20">Sign Out</button>
+                              <button onClick={() => { logout(); setSettingsOpen(false); }} className="w-full rounded-xl border border-rose-200 py-2.5 text-center text-sm font-bold text-rose-600 hover:bg-rose-50 transition">Sign Out</button>
                             )}
                           </div>
                         </div>
