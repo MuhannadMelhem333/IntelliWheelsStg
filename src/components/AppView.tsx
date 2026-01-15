@@ -2179,7 +2179,13 @@ export function AppView() {
                         : 'bg-slate-100 text-slate-800'
                         }`}
                     >
-                      <p className="whitespace-pre-line text-sm leading-relaxed">{msg.text}</p>
+                      {msg.role === 'user' ? (
+                        <p className="whitespace-pre-line text-sm leading-relaxed">{msg.text}</p>
+                      ) : (
+                        <div className="text-sm leading-relaxed">
+                          {formatAIResponse(msg.text)}
+                        </div>
+                      )}
                     </div>
                     {msg.listingData && (
                       <div className="mt-2 rounded-xl border border-slate-200 bg-white p-4 text-left text-sm shadow-sm">
@@ -3209,17 +3215,17 @@ export function AppView() {
       <div className="relative z-10">
         {renderToast()}
         <header className={`sticky top-0 z-50 border-b backdrop-blur-md transition-colors duration-300 ${headerSurfaceClass} ${subtleBorderClass}`}>
-          <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto flex h-24 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-8">
               {/* Logo */}
               <div
-                className="group flex cursor-pointer items-center gap-3 h-16 overflow-hidden"
+                className="group flex cursor-pointer items-center gap-3 h-48 overflow-hidden"
                 onClick={() => setActivePage('listings')}
               >
                 <img
                   src="/IntelliWheels.svg"
                   alt="IntelliWheels"
-                  className="h-16 w-auto object-contain object-center transition-transform group-hover:scale-105 drop-shadow-lg"
+                  className="h-48 w-auto object-contain object-center transition-transform group-hover:scale-105 drop-shadow-lg"
                 />
               </div>
 
@@ -3481,6 +3487,63 @@ function camelToTitle(value: string) {
     .replace(/([A-Z])/g, ' $1')
     .replace(/_/g, ' ')
     .replace(/^./, (str) => str.toUpperCase());
+}
+
+function formatAIResponse(text: string): React.ReactElement {
+  // Convert markdown formatting to clean HTML
+  let formatted = text;
+
+  // Remove ** bold markers and replace with strong tags
+  formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-slate-900">$1</strong>');
+
+  // Remove single * for bullet points and replace with proper list items
+  const lines = formatted.split('\n');
+  const processedLines: string[] = [];
+  let inList = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    // Check if line starts with * (bullet point)
+    if (line.startsWith('* ') || line.startsWith('- ')) {
+      if (!inList) {
+        processedLines.push('<ul class="list-none space-y-2 my-3">');
+        inList = true;
+      }
+      const content = line.substring(2).trim();
+      processedLines.push(`<li class="flex gap-2"><span class="text-indigo-600 font-bold">•</span><span>${content}</span></li>`);
+    } else if (line.match(/^\d+\.\s/)) {
+      // Numbered list
+      if (!inList) {
+        processedLines.push('<ol class="list-none space-y-2 my-3">');
+        inList = true;
+      }
+      const content = line.replace(/^\d+\.\s/, '').trim();
+      const num = line.match(/^(\d+)\./)?.[1] || '1';
+      processedLines.push(`<li class="flex gap-2"><span class="text-indigo-600 font-semibold">${num}.</span><span>${content}</span></li>`);
+    } else {
+      if (inList) {
+        processedLines.push('</ul>');
+        inList = false;
+      }
+      if (line) {
+        processedLines.push(`<p class="my-2">${line}</p>`);
+      }
+    }
+  }
+
+  if (inList) {
+    processedLines.push('</ul>');
+  }
+
+  const html = processedLines.join('');
+
+  return (
+    <div
+      className="formatted-ai-response"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 }
 
 function fileToDataUrl(file: File) {
