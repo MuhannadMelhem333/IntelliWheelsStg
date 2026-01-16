@@ -204,6 +204,26 @@ export interface ReviewStats {
   total_reviews: number;
 }
 
+export interface Dealer {
+  id: number;
+  user_id?: number;
+  name: string;
+  location?: string;
+  latitude?: number;
+  longitude?: number;
+  rating?: number;
+  reviews_count?: number;
+  image_url?: string;
+  showroom_images?: string[];
+  contact_email?: string;
+  contact_phone?: string;
+  business_hours?: Record<string, string>;
+  description?: string;
+  verified?: boolean;
+  created_at?: string;
+  distance?: number; // Calculated distance from user
+}
+
 export interface DealerSummary {
   id: number;
   name: string;
@@ -215,6 +235,20 @@ export interface DealerSummary {
   hero_image?: string | null;
 }
 
-export interface DealerDetail extends DealerSummary {
-  cars: Car[];
+export interface DealerDetail extends Dealer {
+  inventory: Car[];
+  reviews: Review[];
+}
+
+export interface DealerRegistration {
+  name: string;
+  location: string;
+  latitude?: number;
+  longitude?: number;
+  contact_email: string;
+  contact_phone: string;
+  description?: string;
+  showroom_images?: string[];
+  business_hours?: Record<string, string>;
+  image_url?: string;
 }

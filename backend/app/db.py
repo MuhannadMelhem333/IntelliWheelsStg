@@ -223,13 +223,20 @@ def _init_postgres_tables(db):
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS dealers (
             id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
             name TEXT NOT NULL,
             location TEXT,
+            latitude REAL,
+            longitude REAL,
             rating REAL DEFAULT 0,
             reviews_count INTEGER DEFAULT 0,
             image_url TEXT,
+            showroom_images JSONB,
             contact_email TEXT,
             contact_phone TEXT,
+            business_hours JSONB,
+            description TEXT,
+            verified BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT NOW()
         )
     ''')
@@ -272,6 +279,13 @@ def _init_postgres_tables(db):
         "ALTER TABLE cars ADD COLUMN IF NOT EXISTS city TEXT",
         "ALTER TABLE cars ADD COLUMN IF NOT EXISTS neighborhood TEXT",
         "ALTER TABLE cars ADD COLUMN IF NOT EXISTS trim TEXT",
+        "ALTER TABLE dealers ADD COLUMN IF NOT EXISTS user_id INTEGER",
+        "ALTER TABLE dealers ADD COLUMN IF NOT EXISTS latitude REAL",
+        "ALTER TABLE dealers ADD COLUMN IF NOT EXISTS longitude REAL",
+        "ALTER TABLE dealers ADD COLUMN IF NOT EXISTS showroom_images JSONB",
+        "ALTER TABLE dealers ADD COLUMN IF NOT EXISTS business_hours JSONB",
+        "ALTER TABLE dealers ADD COLUMN IF NOT EXISTS description TEXT",
+        "ALTER TABLE dealers ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT FALSE",
     ]
     for migration in migrations:
         try:
@@ -355,14 +369,22 @@ def _init_sqlite_tables(db):
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS dealers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
             name TEXT NOT NULL,
             location TEXT,
+            latitude REAL,
+            longitude REAL,
             rating REAL DEFAULT 0,
             reviews_count INTEGER DEFAULT 0,
             image_url TEXT,
+            showroom_images JSON,
             contact_email TEXT,
             contact_phone TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            business_hours JSON,
+            description TEXT,
+            verified INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
         )
     ''')
     

@@ -4,7 +4,9 @@ import {
   AnalyticsInsights,
   Car,
   CarFilters,
+  Dealer,
   DealerDetail,
+  DealerRegistration,
   DealerSummary,
   ListingDraft,
   PriceEstimatePayload,
@@ -262,15 +264,48 @@ export async function getAnalytics(filter: 'all' | 'my' | 'favorites', token: st
   );
 }
 
-export async function fetchDealers(token: string | null) {
-  return apiRequest<{ success: boolean; dealers: DealerSummary[] }>(`/dealers`, {
+export async function fetchDealers(lat?: number, lng?: number, radius?: number, token?: string | null) {
+  const params = new URLSearchParams();
+  if (lat !== undefined) params.append('lat', String(lat));
+  if (lng !== undefined) params.append('lng', String(lng));
+  if (radius !== undefined) params.append('radius', String(radius));
+
+  // Public endpoint - no token required
+  return apiRequest<{ success: boolean; dealers: Dealer[] }>(`/dealers${params.size ? `?${params.toString()}` : ''}`);
+}
+
+export async function fetchDealerById(dealerId: number, token: string | null) {
+  // Public endpoint - no token required
+  return apiRequest<{ success: boolean; dealer: DealerDetail }>(`/dealers/${dealerId}`);
+}
+
+export async function registerDealer(payload: DealerRegistration, token: string | null) {
+  return apiRequest<{ success: boolean; dealer_id: number; message: string }>(`/dealers/register`, {
+    method: 'POST',
+    token,
+    body: payload,
+  });
+}
+
+export async function getDealerProfile(token: string | null) {
+  return apiRequest<{ success: boolean; dealer: Dealer }>(`/dealers/profile`, {
     token,
   });
 }
 
-export async function fetchDealerById(dealerId: number, token: string | null) {
-  return apiRequest<{ success: boolean; dealer: DealerDetail }>(`/dealers/${dealerId}`, {
+export async function updateDealerProfile(payload: Partial<DealerRegistration>, token: string | null) {
+  return apiRequest<{ success: boolean; message: string }>(`/dealers/profile`, {
+    method: 'PUT',
     token,
+    body: payload,
+  });
+}
+
+export async function uploadShowroomImage(imageUrl: string, token: string | null) {
+  return apiRequest<{ success: boolean; showroom_images: string[] }>(`/dealers/showroom/upload`, {
+    method: 'POST',
+    token,
+    body: { image_url: imageUrl },
   });
 }
 

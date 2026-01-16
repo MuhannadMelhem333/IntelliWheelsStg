@@ -1,5 +1,8 @@
-import type { Metadata } from "next";
+'use client';
+
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AuthProvider } from '@/context/AuthContext';
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,11 +15,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "IntelliWheels",
-  description: "IntelliWheels - Your intelligent automotive marketplace for buying and selling cars",
-};
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -27,7 +25,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

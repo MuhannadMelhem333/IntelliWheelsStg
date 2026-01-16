@@ -1,12 +1,12 @@
 'use client';
 
+import { useEffect } from 'react';
 import { AppView } from '@/components/AppView';
-import { AuthProvider } from '@/context/AuthContext';
 
 export default function Home() {
-  return (
-    <AuthProvider>
-      <AppView />
-    </AuthProvider>
-  );
+  useEffect(() => {
+    document.title = 'IntelliWheels';
+  }, []);
+
+  return <AppView />;
 }

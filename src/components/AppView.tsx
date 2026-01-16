@@ -34,12 +34,19 @@ import {
   ChatMessage,
   ChatSession,
   CurrencyCode,
+  Dealer,
   DealerSummary,
   PriceEstimatePayload,
   VisionAttributes,
 } from '@/lib/types';
 import { CHAT_HISTORY_LIMIT, STORAGE_KEYS } from '@/lib/config';
 import { getAllMakes, getModelsForMake } from '@/lib/vehicleDatabase';
+import { DealersPage } from './DealersPage';
+import { Input } from './Input';
+import { Select } from './Select';
+
+import { Textarea } from './Textarea';
+import { Button } from './Button';
 
 // Make/model options for Add Listing come from comprehensive vehicle database
 // Filter makes come from actual database listings
@@ -537,15 +544,22 @@ interface VisionSuggestion extends VisionAttributes {
 }
 
 export function AppView() {
-  const { user, token, loading: authLoading, login, signup, logout, updateMyProfile, refreshProfile, error: authError, clearError, currency, setCurrency, formatPrice, convertCurrency } = useAuth();
+  const { user, token, loading: authLoading, login, signup, logout, updateMyProfile, refreshProfile, error: authError, clearError, currency, setCurrency, formatPrice, convertCurrency, theme, setTheme } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [activePage, setActivePage] = useState<PageKey>('listings');
+
+  // Restore active page on mount
+  useEffect(() => {
+    const savedPage = localStorage.getItem('intelliwheels_active_page');
+    if (savedPage) {
+      setActivePage(savedPage as PageKey);
+    }
+  }, []);
   const [serviceMode, setServiceMode] = useState<ServiceMode>('marketplace');
-  const [theme, setTheme] = useState<ThemeMode>('light');
   const [filters, setFilters] = useState<CarFilters>(DEFAULT_FILTERS);
   const [cars, setCars] = useState<Car[]>([]);
   const [makes, setMakes] = useState<string[]>([]);
-  const [dealers, setDealers] = useState<DealerSummary[]>([]);
+  const [dealers, setDealers] = useState<Dealer[]>([]);
   const [dealersLoading, setDealersLoading] = useState(false);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [favoriteCars, setFavoriteCars] = useState<Car[]>([]);
@@ -648,6 +662,13 @@ export function AppView() {
     return base.replace(/\/api$/, '');
   }, []);
 
+  // Persist active page to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('intelliwheels_active_page', activePage);
+    }
+  }, [activePage]);
+
   // Comprehensive vehicle database for Add Listing form (all production vehicles)
   const allVehicleMakes = useMemo(() => getAllMakes(), []);
   const listingModelOptions = useMemo(
@@ -695,7 +716,7 @@ export function AppView() {
   const headerMuted = resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-500';
   const headerSubtleText = resolvedTheme === 'dark' ? 'text-slate-300' : 'text-slate-600';
   const selectorClass = resolvedTheme === 'dark'
-    ? 'rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100'
+    ? 'rounded-2xl border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-slate-100'
     : 'rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900';
   const statusPillClass = mounted && token
     ? 'border border-emerald-400/40 bg-emerald-500/10 text-emerald-300'
@@ -746,13 +767,6 @@ export function AppView() {
     }
   }, []);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const storedTheme = localStorage.getItem(STORAGE_KEYS.theme) as ThemeMode | null;
-    if (storedTheme) {
-      setTheme((prev) => (prev === storedTheme ? prev : storedTheme));
-    }
-  }, []);
 
   // User-specific chat storage key
   const userChatStorageKey = useMemo(() => {
@@ -791,11 +805,6 @@ export function AppView() {
     if (activeSessionId || !chatSessions.length) return;
     setActiveSessionId(chatSessions[0].id);
   }, [chatSessions, activeSessionId]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEYS.theme, theme);
-  }, [theme]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1022,7 +1031,7 @@ export function AppView() {
     async function loadDealerDirectory() {
       setDealersLoading(true);
       try {
-        const response = await fetchDealers(token);
+        const response = await fetchDealers(undefined, undefined, undefined, token);
         if (!cancelled && response.success) {
           setDealers(response.dealers || []);
         }
@@ -1845,7 +1854,10 @@ export function AppView() {
   const renderCarCard = (car: Car) => (
     <div
       key={car.id}
-      className="flex flex-col rounded-3xl border border-slate-100 bg-white/90 p-4 shadow-lg transition hover:-translate-y-1 hover:shadow-xl"
+      className={`flex flex-col rounded-3xl border p-4 shadow-lg transition hover:-translate-y-1 hover:shadow-xl ${resolvedTheme === 'dark'
+        ? 'border-slate-700 bg-slate-800/90'
+        : 'border-slate-100 bg-white/90'
+        }`}
     >
       <div className="relative overflow-hidden rounded-2xl bg-slate-100">
         <img
@@ -1861,7 +1873,11 @@ export function AppView() {
         />
         <button
           onClick={() => toggleFavorite(car)}
-          className={`absolute right-3 top-3 rounded-full px-3 py-1 text-xs font-semibold ${favorites.includes(car.id) ? 'bg-rose-500 text-white' : 'bg-white/90 text-slate-900'
+          className={`absolute right-3 top-3 rounded-full px-3 py-1 text-xs font-semibold shadow-sm transition ${favorites.includes(car.id)
+            ? 'bg-rose-500 text-white hover:bg-rose-600'
+            : resolvedTheme === 'dark'
+              ? 'bg-slate-800/90 text-slate-200 hover:bg-slate-700'
+              : 'bg-white/90 text-slate-900 hover:bg-white'
             }`}
         >
           {favorites.includes(car.id) ? copy.listingFavorited : copy.listingFavorite}
@@ -1869,17 +1885,21 @@ export function AppView() {
       </div>
       <div className="mt-4 flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-slate-900">{car.make} {car.model}</h3>
-          <p className="text-sm text-slate-500">{car.year || 'Year TBD'}</p>
+          <h3 className={`text-lg font-semibold ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'
+            }`}>{car.make} {car.model}</h3>
+          <p className={`text-sm ${resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+            }`}>{car.year || 'Year TBD'}</p>
         </div>
         <div className="text-right text-2xl font-bold text-emerald-600">
           {formatPrice(car.price, car.currency)}
         </div>
       </div>
       {car.specs?.bodyStyle && (
-        <p className="text-sm text-slate-600">{car.specs.bodyStyle}</p>
+        <p className={`text-sm ${resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-600'
+          }`}>{car.specs.bodyStyle}</p>
       )}
-      <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
+      <div className={`mt-4 flex flex-wrap gap-2 text-xs ${resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+        }`}>
         {car.rating ? <span>⭐ {car.rating.toFixed(1)}</span> : null}
         {car.reviews ? <span>{car.reviews} reviews</span> : null}
         {car.galleryImages?.length ? <span>{car.galleryImages.length} photos</span> : null}
@@ -1887,19 +1907,26 @@ export function AppView() {
         {car.odometerKm ? <span>{car.odometerKm.toLocaleString()} km</span> : null}
       </div>
       {car.description && (
-        <p className="mt-3 line-clamp-3 text-sm text-slate-600">{car.description}</p>
+        <p className={`mt-3 line-clamp-3 text-sm ${resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-600'
+          }`}>{car.description}</p>
       )}
-      <button
-        className="mt-4 w-full rounded-xl bg-sky-600 py-2 text-sm font-semibold text-white hover:bg-sky-700"
+      <Button
+        className="mt-4 w-full text-white hover:bg-sky-700"
         onClick={() => handleOpenCarDetails(car.id)}
+        resolvedTheme={resolvedTheme}
+        variant="primary"
+        style={{ backgroundColor: '#0284c7' }} // Sky-600
       >
         {copy.listingViewDetails}
-      </button>
+      </Button>
     </div>
   );
 
   const renderDealerCard = (dealer: DealerSummary) => (
-    <div key={dealer.id} className="flex flex-col rounded-3xl border border-slate-100 bg-white/90 p-4 shadow hover:shadow-lg">
+    <div key={dealer.id} className={`flex flex-col rounded-3xl border p-4 shadow hover:shadow-lg ${resolvedTheme === 'dark'
+      ? 'border-slate-700 bg-slate-800'
+      : 'border-slate-100 bg-white/90'
+      }`}>
       <div className="h-40 overflow-hidden rounded-2xl bg-slate-100">
         <img
           src={dealer.hero_image || '/placeholder-car.svg'}
@@ -1909,8 +1936,10 @@ export function AppView() {
       </div>
       <div className="mt-4 flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-slate-900">{dealer.name}</h3>
-          <p className="text-sm text-slate-500">{dealer.total_listings} {copy.dealerMetaListings}</p>
+          <h3 className={`text-lg font-semibold ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'
+            }`}>{dealer.name}</h3>
+          <p className={`text-sm ${resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+            }`}>{dealer.total_listings} {copy.dealerMetaListings}</p>
         </div>
         <div className="text-right text-sm text-slate-500">
           <p>{copy.dealerMetaAverage}</p>
@@ -1925,20 +1954,27 @@ export function AppView() {
           <p>{dealer.top_makes.map((entry) => entry.make).slice(0, 3).join(', ')}</p>
         </div>
       ) : null}
-      <button
-        className="mt-4 w-full rounded-xl bg-slate-900/90 py-2 text-sm font-semibold text-white"
+      <Button
+        className="mt-4 w-full text-white"
         onClick={() => handleOpenDealer(dealer.id)}
+        resolvedTheme={resolvedTheme}
+        variant="primary"
+        style={{ backgroundColor: '#0f172a' }} // Slate-900
       >
         {copy.dealersVisit}
-      </button>
+      </Button>
     </div>
   );
 
 
   const renderAuthPanel = () => (
     <div className="grid gap-6 md:grid-cols-2">
-      <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-        <h3 className="text-xl font-semibold text-slate-900">{copy.authSignIn}</h3>
+      <div className={`rounded-3xl border p-6 shadow-sm ${resolvedTheme === 'dark'
+        ? 'border-slate-700 bg-slate-800'
+        : 'border-slate-100 bg-white'
+        }`}>
+        <h3 className={`text-xl font-semibold ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'
+          }`}>{copy.authSignIn}</h3>
         {authError && (
           <p className="mt-3 rounded-2xl bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600">{authError}</p>
         )}
@@ -1958,13 +1994,22 @@ export function AppView() {
             }
           }}
         >
-          <input name="login-username" placeholder={copy.authUsername} className={`w-full ${inputFieldClass}`} required />
-          <input name="login-password" type="password" placeholder={copy.authPassword} className={`w-full ${inputFieldClass}`} required />
-          <button className="w-full rounded-2xl bg-sky-600 py-3 font-semibold text-white">{copy.authSignIn}</button>
+          <Input name="login-username" placeholder={copy.authUsername} required resolvedTheme={resolvedTheme} />
+          <Input name="login-password" type="password" placeholder={copy.authPassword} required resolvedTheme={resolvedTheme} />
+          <Button
+            className="w-full font-semibold"
+            resolvedTheme={resolvedTheme}
+          >
+            {copy.authSignIn}
+          </Button>
         </form>
       </div>
-      <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-        <h3 className="text-xl font-semibold text-slate-900">{copy.authCreateAccount}</h3>
+      <div className={`rounded-3xl border p-6 shadow-sm ${resolvedTheme === 'dark'
+        ? 'border-slate-700 bg-slate-800'
+        : 'border-slate-100 bg-white'
+        }`}>
+        <h3 className={`text-xl font-semibold ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'
+          }`}>{copy.authCreateAccount}</h3>
         <form
           className="mt-4 space-y-4"
           onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {
@@ -1984,10 +2029,17 @@ export function AppView() {
             }
           }}
         >
-          <input name="signup-username" placeholder={copy.authUsername} className={`w-full ${inputFieldClass}`} required />
-          <input name="signup-email" type="email" placeholder={copy.authEmail} className={`w-full ${inputFieldClass}`} required />
-          <input name="signup-password" type="password" placeholder={copy.authPassword} className={`w-full ${inputFieldClass}`} required />
-          <button className="w-full rounded-2xl bg-emerald-500 py-3 font-semibold text-white">{copy.authSignUp}</button>
+          <Input name="signup-username" placeholder={copy.authUsername} required resolvedTheme={resolvedTheme} />
+          <Input name="signup-email" type="email" placeholder={copy.authEmail} required resolvedTheme={resolvedTheme} />
+          <Input name="signup-password" type="password" placeholder={copy.authPassword} required resolvedTheme={resolvedTheme} />
+          <Button
+            className="w-full font-semibold"
+            variant="primary"
+            resolvedTheme={resolvedTheme}
+            style={{ backgroundColor: resolvedTheme === 'dark' ? '#10b981' : '#10b981' }} // Keeping emerald color for signup
+          >
+            {copy.authSignUp}
+          </Button>
         </form>
       </div>
     </div>
@@ -2004,16 +2056,31 @@ export function AppView() {
     }
     return (
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-          <h3 className="text-xl font-semibold text-slate-900">{copy.profileTitle}</h3>
-          <p className="text-slate-600">{copy.authUsername}: {user.username}</p>
-          <p className="text-slate-600">{copy.authEmail}: {user.email}</p>
-          <button className="mt-4 rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-900" onClick={() => refreshProfile()}>
+        <div className={`rounded-3xl border p-6 shadow-sm ${resolvedTheme === 'dark'
+          ? 'border-slate-700 bg-slate-800'
+          : 'border-slate-100 bg-white'
+          }`}>
+          <h3 className={`text-xl font-semibold ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'
+            }`}>{copy.profileTitle}</h3>
+          <p className={`${resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-600'
+            }`}>{copy.authUsername}: {user.username}</p>
+          <p className={`${resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-600'
+            }`}>{copy.authEmail}: {user.email}</p>
+          <Button
+            className="mt-4 px-4 py-2 text-sm font-semibold"
+            variant="secondary"
+            onClick={() => refreshProfile()}
+            resolvedTheme={resolvedTheme}
+          >
             {copy.profileRefresh}
-          </button>
+          </Button>
         </div>
-        <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-          <h3 className="text-xl font-semibold text-slate-900">{copy.profileUpdate}</h3>
+        <div className={`rounded-3xl border p-6 shadow-sm ${resolvedTheme === 'dark'
+          ? 'border-slate-700 bg-slate-800'
+          : 'border-slate-100 bg-white'
+          }`}>
+          <h3 className={`text-xl font-semibold ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'
+            }`}>{copy.profileUpdate}</h3>
           <form
             className="mt-4 space-y-3"
             onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {
@@ -2031,15 +2098,27 @@ export function AppView() {
               }
             }}
           >
-            <input name="profile-username" placeholder={copy.authUsername} defaultValue={user.username} className={`w-full ${inputFieldClass}`} />
-            <input name="profile-email" type="email" placeholder={copy.authEmail} defaultValue={user.email} className={`w-full ${inputFieldClass}`} />
-            <input name="profile-current-password" type="password" placeholder={copy.authCurrentPassword} className={`w-full ${inputFieldClass}`} />
-            <input name="profile-password" type="password" placeholder={copy.authNewPassword} className={`w-full ${inputFieldClass}`} />
-            <button className="w-full rounded-2xl bg-emerald-500 py-3 font-semibold text-white">{copy.profileSaveChanges}</button>
+            <Input name="profile-username" placeholder={copy.authUsername} defaultValue={user.username} resolvedTheme={resolvedTheme} />
+            <Input name="profile-email" type="email" placeholder={copy.authEmail} defaultValue={user.email} resolvedTheme={resolvedTheme} />
+            <Input name="profile-current-password" type="password" placeholder={copy.authCurrentPassword} resolvedTheme={resolvedTheme} />
+            <Input name="profile-password" type="password" placeholder={copy.authNewPassword} resolvedTheme={resolvedTheme} />
+            <Button
+              className="w-full font-semibold"
+              variant="primary"
+              resolvedTheme={resolvedTheme}
+              style={{ backgroundColor: resolvedTheme === 'dark' ? '#10b981' : '#10b981' }} // Keeping emerald color
+            >
+              {copy.profileSaveChanges}
+            </Button>
           </form>
-          <button className="mt-4 w-full rounded-2xl border border-slate-200 py-2 font-semibold text-slate-900" onClick={() => logout()}>
+          <Button
+            className="mt-4 w-full font-semibold"
+            variant="secondary"
+            onClick={() => logout()}
+            resolvedTheme={resolvedTheme}
+          >
             {copy.authSignOut}
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -2048,17 +2127,18 @@ export function AppView() {
   const renderChatbot = () => (
     <div className="flex h-[calc(100vh-180px)] gap-4">
       {/* Sidebar */}
-      <div className="hidden w-72 flex-shrink-0 flex-col rounded-2xl border border-slate-200 bg-white lg:flex">
-        <div className="border-b border-slate-100 p-4">
-          <button
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:from-blue-600 hover:to-indigo-700"
+      <div className={`hidden w-72 flex-shrink-0 flex-col rounded-2xl border lg:flex ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+        <div className={`border-b p-4 ${resolvedTheme === 'dark' ? 'border-slate-700' : 'border-slate-100'}`}>
+          <Button
+            className="w-full gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:from-blue-600 hover:to-indigo-700"
             onClick={() => startNewChat()}
+            resolvedTheme={resolvedTheme}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             {copy.chatNewChat}
-          </button>
+          </Button>
         </div>
         <div className="flex-1 overflow-y-auto p-3">
           <p className="mb-2 px-2 text-xs font-medium uppercase tracking-wide text-slate-400">{copy.chatRecent}</p>
@@ -2067,8 +2147,12 @@ export function AppView() {
               <div
                 key={session.id}
                 className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${session.id === activeSessionId
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-slate-600 hover:bg-slate-50'
+                  ? resolvedTheme === 'dark'
+                    ? 'bg-blue-900/40 text-blue-100'
+                    : 'bg-blue-50 text-blue-700'
+                  : resolvedTheme === 'dark'
+                    ? 'text-slate-300 hover:bg-slate-700'
+                    : 'text-slate-600 hover:bg-slate-50'
                   }`}
               >
                 <button
@@ -2099,14 +2183,14 @@ export function AppView() {
             ))}
           </div>
         </div>
-        <div className="border-t border-slate-100 p-4">
+        <div className={`border-t p-4 ${resolvedTheme === 'dark' ? 'border-slate-700' : 'border-slate-100'}`}>
         </div>
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex flex-1 flex-col rounded-2xl border border-slate-200 bg-white">
+      <div className={`flex flex-1 flex-col rounded-2xl border ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
         {/* Chat Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+        <div className={`flex items-center justify-between border-b px-6 py-4 ${resolvedTheme === 'dark' ? 'border-slate-700' : 'border-slate-100'}`}>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600">
               <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2114,8 +2198,8 @@ export function AppView() {
               </svg>
             </div>
             <div>
-              <h2 className="font-semibold text-slate-900">{copy.chatAssistantName}</h2>
-              <p className="text-xs text-slate-500">{copy.chatGeneralAssistant}</p>
+              <h2 className={`font-semibold ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>{copy.chatAssistantName}</h2>
+              <p className={`text-xs ${resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{copy.chatGeneralAssistant}</p>
             </div>
           </div>
           {chatBusy && (
@@ -2139,17 +2223,19 @@ export function AppView() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                 </svg>
               </div>
-              <h3 className="mb-2 text-xl font-semibold text-slate-900">{copy.chatWelcome}</h3>
-              <p className="max-w-md text-slate-500">{copy.chatWelcomeDesc}</p>
+              <h3 className={`mb-2 text-xl font-semibold ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>{copy.chatWelcome}</h3>
+              <p className={`max-w-md ${resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{copy.chatWelcomeDesc}</p>
               <div className="mt-6 flex flex-wrap justify-center gap-2">
                 {[copy.chatSuggestion1, copy.chatSuggestion2, copy.chatSuggestion3].map((suggestion) => (
-                  <button
+                  <Button
                     key={suggestion}
                     onClick={() => setChatInput(suggestion)}
-                    className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 transition hover:border-blue-300 hover:bg-blue-50"
+                    variant="secondary"
+                    className="rounded-full text-sm"
+                    resolvedTheme={resolvedTheme}
                   >
                     {suggestion}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -2176,21 +2262,23 @@ export function AppView() {
                     <div
                       className={`inline-block rounded-2xl px-4 py-3 ${msg.role === 'user'
                         ? 'bg-slate-700 text-white'
-                        : 'bg-slate-100 text-slate-800'
+                        : resolvedTheme === 'dark'
+                          ? 'bg-slate-700/50 text-slate-200'
+                          : 'bg-slate-100 text-slate-800'
                         }`}
                     >
                       {msg.role === 'user' ? (
                         <p className="whitespace-pre-line text-sm leading-relaxed">{msg.text}</p>
                       ) : (
                         <div className="text-sm leading-relaxed">
-                          {formatAIResponse(msg.text)}
+                          {formatAIResponse(msg.text, resolvedTheme)}
                         </div>
                       )}
                     </div>
                     {msg.listingData && (
-                      <div className="mt-2 rounded-xl border border-slate-200 bg-white p-4 text-left text-sm shadow-sm">
-                        <p className="mb-2 font-semibold text-slate-900">{copy.chatProposedListing}</p>
-                        <div className="space-y-1 text-slate-600">
+                      <div className={`mt-2 rounded-xl border p-4 text-left text-sm shadow-sm ${resolvedTheme === 'dark' ? 'border-slate-600 bg-slate-700/50' : 'border-slate-200 bg-white'}`}>
+                        <p className={`mb-2 font-semibold ${resolvedTheme === 'dark' ? 'text-slate-200' : 'text-slate-900'}`}>{copy.chatProposedListing}</p>
+                        <div className={`space-y-1 ${resolvedTheme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>
                           {Object.entries(msg.listingData).map(([key, value]) =>
                             value && key !== 'specs' ? (
                               <p key={key}>
@@ -2221,21 +2309,21 @@ export function AppView() {
         <div className="border-t border-slate-100 p-4">
           <div className="mx-auto max-w-3xl">
             {chatAttachment && (
-              <div className="mb-3 flex items-center justify-between rounded-xl bg-slate-50 p-3">
+              <div className="mb-3 flex items-center justify-between rounded-xl bg-slate-50 p-3 dark:bg-slate-700">
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 overflow-hidden rounded-lg bg-slate-200">
                     <img src={chatAttachment.preview} alt="Attachment" className="h-full w-full object-cover" />
                   </div>
-                  <span className="text-sm text-slate-600">{copy.chatImageAttached}</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-300">{copy.chatImageAttached}</span>
                 </div>
-                <button onClick={() => setChatAttachment(null)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-red-500">
+                <button onClick={() => setChatAttachment(null)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-red-500 dark:hover:bg-slate-600">
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
             )}
-            <div className="relative flex items-end gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-400">
+            <div className={`relative flex items-end gap-3 rounded-2xl border p-3 focus-within:ring-1 ${resolvedTheme === 'dark' ? 'border-slate-600 bg-slate-700 focus-within:border-sky-500 focus-within:ring-sky-500' : 'border-slate-200 bg-slate-50 focus-within:border-blue-400 focus-within:ring-blue-400'}`}>
               <label className="flex cursor-pointer items-center justify-center rounded-xl p-2 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -2271,7 +2359,7 @@ export function AppView() {
                 }}
                 placeholder={copy.chatPlaceholder}
                 rows={1}
-                className="max-h-32 min-h-[44px] flex-1 resize-none bg-transparent py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none"
+                className={`max-h-32 min-h-[44px] flex-1 resize-none bg-transparent py-2 text-sm ${resolvedTheme === 'dark' ? 'text-slate-100 placeholder-slate-500' : 'text-slate-900 placeholder-slate-400'} focus:outline-none`}
                 style={{ height: 'auto', overflow: 'hidden' }}
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;
@@ -2320,14 +2408,15 @@ export function AppView() {
       <div className="space-y-6">
         <div className="flex flex-wrap items-center gap-3">
           {['all', 'my', 'favorites'].map((filter) => (
-            <button
+            <Button
               key={filter}
               onClick={() => setAnalyticsFilter(filter as 'all' | 'my' | 'favorites')}
-              className={`rounded-2xl px-4 py-2 text-sm font-semibold ${analyticsFilter === filter ? 'bg-sky-600 text-white' : 'border border-slate-200 bg-white text-slate-600'
-                }`}
+              variant={analyticsFilter === filter ? 'primary' : 'secondary'}
+              resolvedTheme={resolvedTheme}
+              size="sm"
             >
               {camelToTitle(filter)}
-            </button>
+            </Button>
           ))}
         </div>
         {analyticsData.summary && (
@@ -2361,60 +2450,71 @@ export function AppView() {
         return (
           <div className="space-y-6">
             <div className="grid gap-4 lg:grid-cols-[2fr,1fr]">
-              <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+              <div className={`rounded-3xl border p-4 shadow-sm ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-100 bg-white'}`}>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <select value={filters.category || 'all'} name="filter-category" id="filter-category" onChange={(event) => setFilters((prev) => ({ ...prev, category: event.target.value as any }))} className={inputFieldClass}>
+                  <Select value={filters.category || 'all'} name="filter-category" id="filter-category" onChange={(event) => setFilters((prev) => ({ ...prev, category: event.target.value as any }))} resolvedTheme={resolvedTheme}>
                     {CATEGORY_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
-                  </select>
-                  <select value={filters.make} name="filter-make" id="filter-make" onChange={(event) => setFilters((prev) => ({ ...prev, make: event.target.value }))} className={inputFieldClass}>
+                  </Select>
+                  <Select value={filters.make} name="filter-make" id="filter-make" onChange={(event) => setFilters((prev) => ({ ...prev, make: event.target.value }))} resolvedTheme={resolvedTheme}>
                     <option value="all">All Makes</option>
                     {allVehicleMakes.map((make) => (
                       <option key={make} value={make}>{make}</option>
                     ))}
-                  </select>
-                  <input
+                  </Select>
+                  <Input
                     name="filter-search"
                     id="filter-search"
                     value={filters.search}
                     onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
                     placeholder="Search make, model, year"
-                    className={inputFieldClass}
+                    resolvedTheme={resolvedTheme}
                   />
-                  <select value={filters.sort} name="filter-sort" id="filter-sort" onChange={(event) => setFilters((prev) => ({ ...prev, sort: event.target.value as CarFilters['sort'] }))} className={inputFieldClass}>
+                  <Select value={filters.sort} name="filter-sort" id="filter-sort" onChange={(event) => setFilters((prev) => ({ ...prev, sort: event.target.value as CarFilters['sort'] }))} resolvedTheme={resolvedTheme}>
                     <option value="default">Recommended</option>
                     <option value="price-asc">Price: Low → High</option>
                     <option value="price-desc">Price: High → Low</option>
                     <option value="year-desc">Newer first</option>
                     <option value="rating-desc">Top rated</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
-              <form onSubmit={handleSemanticSearch} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
-                <p className="text-sm font-semibold text-slate-900">AI Semantic Search</p>
+              <form onSubmit={handleSemanticSearch} className={`rounded-3xl border p-4 shadow-sm ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-100 bg-white'}`}>
+                <p className={`text-sm font-semibold ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>AI Semantic Search</p>
                 <div className="mt-3 flex gap-3">
-                  <input
+                  <Input
                     name="semantic-query"
                     id="semantic-query"
                     value={semanticQuery}
                     onChange={(event) => setSemanticQuery(event.target.value)}
                     placeholder="e.g. Luxury hybrid SUV under 150k"
-                    className={`flex-1 ${inputFieldClass}`}
+                    className="flex-1"
+                    resolvedTheme={resolvedTheme}
                   />
-                  <button type="submit" className="rounded-2xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white">
+                  <Button type="submit" size="sm" resolvedTheme={resolvedTheme}>
                     {semanticLoading ? 'Searching...' : 'Search'}
-                  </button>
+                  </Button>
                 </div>
                 {semanticResults.length > 0 && (
                   <div className="mt-4 space-y-3">
                     {semanticResults.map((car) => (
-                      <div key={car.id} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3 text-sm text-slate-600">
+                      <div key={car.id} className={`flex items-center gap-3 rounded-2xl border p-3 text-sm transition ${resolvedTheme === 'dark'
+                        ? 'border-slate-700 bg-slate-800 text-slate-300'
+                        : 'border-slate-100 bg-slate-50 text-slate-600'
+                        }`}>
                         <img src={getCarImage(car)} alt={car.model} className="h-14 w-20 rounded-xl object-cover" />
                         <div className="flex-1">
                           <div className="flex items-center justify-between">
-                            <span className="font-semibold text-slate-900">{car.make} {car.model}</span>
-                            <button className="text-xs text-sky-600" onClick={() => handleOpenCarDetails(car.id)}>Inspect</button>
+                            <span className={`font-semibold ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>{car.make} {car.model}</span>
+                            <Button
+                              variant="ghost"
+                              className="h-auto p-0 text-xs text-sky-600 hover:bg-transparent mr-2"
+                              onClick={() => handleOpenCarDetails(car.id)}
+                              resolvedTheme={resolvedTheme}
+                            >
+                              Inspect
+                            </Button>
                           </div>
                           <p>{formatPrice(car.price, car.currency)}</p>
                         </div>
@@ -2432,66 +2532,70 @@ export function AppView() {
               )}
             </div>
             {sortedCars.length > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-slate-100 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+              <div className={`flex flex-wrap items-center justify-between gap-4 rounded-3xl border px-4 py-3 text-sm shadow-sm ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-slate-100 bg-white text-slate-600'}`}>
                 <p>
                   Showing {Math.min((currentPage - 1) * LISTINGS_PER_PAGE + 1, sortedCars.length)}-
                   {Math.min(currentPage * LISTINGS_PER_PAGE, sortedCars.length)} of {sortedCars.length} listings
                 </p>
                 {totalPages > 1 && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
+                    <Button
+                      variant="outline"
                       onClick={() => goToPage(currentPage - 1)}
                       disabled={currentPage === 1}
-                      className="rounded-2xl border border-slate-200 px-3 py-1 font-semibold text-slate-700 disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300"
+                      className="px-3 py-1 text-slate-700 disabled:cursor-not-allowed disabled:text-slate-300"
+                      resolvedTheme={resolvedTheme}
                     >
                       Prev
-                    </button>
+                    </Button>
                     {paginationWindow[0] > 1 && (
                       <>
-                        <button
-                          type="button"
+                        <Button
+                          variant="outline"
                           onClick={() => goToPage(1)}
-                          className="rounded-2xl border border-slate-200 px-3 py-1 font-semibold text-slate-700"
+                          className="px-3 py-1 text-slate-700"
+                          resolvedTheme={resolvedTheme}
                         >
                           1
-                        </button>
+                        </Button>
                         {paginationWindow[0] > 2 && <span className="text-slate-400">…</span>}
                       </>
                     )}
                     {paginationWindow.map((page) => (
-                      <button
+                      <Button
                         key={page}
-                        type="button"
                         onClick={() => goToPage(page)}
-                        className={`rounded-2xl px-3 py-1 font-semibold ${currentPage === page ? 'bg-sky-600 text-white' : 'border border-slate-200 text-slate-700'
-                          }`}
+                        variant={currentPage === page ? 'primary' : 'outline'}
+                        className="px-3 py-1"
+                        resolvedTheme={resolvedTheme}
                       >
                         {page}
-                      </button>
+                      </Button>
                     ))}
                     {paginationWindow[paginationWindow.length - 1] < totalPages && (
                       <>
                         {paginationWindow[paginationWindow.length - 1] < totalPages - 1 && (
                           <span className="text-slate-400">…</span>
                         )}
-                        <button
-                          type="button"
+                        <Button
+                          variant="outline"
                           onClick={() => goToPage(totalPages)}
-                          className="rounded-2xl border border-slate-200 px-3 py-1 font-semibold text-slate-700"
+                          className="px-3 py-1 text-slate-700"
+                          resolvedTheme={resolvedTheme}
                         >
                           {totalPages}
-                        </button>
+                        </Button>
                       </>
                     )}
-                    <button
-                      type="button"
+                    <Button
+                      variant="outline"
                       onClick={() => goToPage(currentPage + 1)}
                       disabled={currentPage === totalPages}
-                      className="rounded-2xl border border-slate-200 px-3 py-1 font-semibold text-slate-700 disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300"
+                      className="px-3 py-1 text-slate-700 disabled:cursor-not-allowed disabled:text-slate-300"
+                      resolvedTheme={resolvedTheme}
                     >
                       Next
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>
@@ -2503,24 +2607,24 @@ export function AppView() {
           <div className="space-y-6">
             {/* Tab Navigation */}
             <div className="flex gap-2 border-b border-slate-200 pb-2">
-              <button
+              <Button
                 onClick={() => setFavoritesSubTab('favorites')}
-                className={`px-6 py-2 text-sm font-semibold rounded-t-xl transition ${favoritesSubTab === 'favorites'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
+                variant={favoritesSubTab === 'favorites' ? 'primary' : 'secondary'}
+                className={`rounded-t-xl rounded-b-none px-6 py-2 text-sm font-semibold transition ${favoritesSubTab === 'favorites' ? 'shadow-md' : ''}`}
+                resolvedTheme={resolvedTheme}
+                style={favoritesSubTab === 'favorites' ? { backgroundColor: '#4f46e5' } : {}} // Indigo-600
               >
                 Favorites ({favoriteCars.length})
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => setFavoritesSubTab('watchlist')}
-                className={`px-6 py-2 text-sm font-semibold rounded-t-xl transition ${favoritesSubTab === 'watchlist'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
+                variant={favoritesSubTab === 'watchlist' ? 'primary' : 'secondary'}
+                className={`rounded-t-xl rounded-b-none px-6 py-2 text-sm font-semibold transition ${favoritesSubTab === 'watchlist' ? 'shadow-md' : ''}`}
+                resolvedTheme={resolvedTheme}
+                style={favoritesSubTab === 'watchlist' ? { backgroundColor: '#4f46e5' } : {}} // Indigo-600
               >
                 Watchlist ({watchlistCars.length})
-              </button>
+              </Button>
             </div>
 
             {/* Tab Content */}
@@ -2528,15 +2632,18 @@ export function AppView() {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {favoriteCars.map((car) => renderCarCard(car))}
                 {favoriteCars.length === 0 && (
-                  <div className="col-span-full rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-                    <p className="text-slate-500">{copy.noFavorites}</p>
+                  <div className={`col-span-full rounded-3xl border border-dashed p-8 text-center ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-slate-50'}`}>
+                    <p className={`text-slate-500 ${resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{copy.noFavorites}</p>
                   </div>
                 )}
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {watchlistCars.map((car) => (
-                  <div key={car.id} className="flex flex-col rounded-3xl border border-slate-100 bg-white/90 p-4 shadow hover:shadow-lg transition-shadow">
+                  <div key={car.id} className={`flex flex-col rounded-3xl border p-4 shadow hover:shadow-lg transition-shadow ${resolvedTheme === 'dark'
+                    ? 'border-slate-700 bg-slate-800/90'
+                    : 'border-slate-100 bg-white/90'
+                    }`}>
                     <div className="relative overflow-hidden rounded-2xl bg-slate-100">
                       <img
                         src={getCarImage(car)}
@@ -2552,8 +2659,8 @@ export function AppView() {
                     </div>
                     <div className="mt-4 flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="text-lg font-semibold text-slate-900">{car.make} {car.model}</h3>
-                        <p className="text-sm text-slate-500">{car.year || 'Year TBD'}</p>
+                        <h3 className={`text-lg font-semibold ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>{car.make} {car.model}</h3>
+                        <p className={`text-sm ${resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{car.year || 'Year TBD'}</p>
                       </div>
                       <div className="text-right text-2xl font-bold text-emerald-600">
                         {formatPrice(car.price, car.currency)}
@@ -2573,14 +2680,17 @@ export function AppView() {
                       <p className="mt-3 line-clamp-3 text-sm text-slate-600">{car.description}</p>
                     )}
                     <div className="mt-4 flex gap-2">
-                      <button
-                        className="flex-1 rounded-xl bg-sky-600 py-2 text-sm font-semibold text-white hover:bg-sky-700"
+                      <Button
+                        className="flex-1 text-sm text-white hover:bg-sky-700"
                         onClick={() => handleOpenCarDetails(car.id)}
+                        resolvedTheme={resolvedTheme}
+                        variant="primary"
+                        style={{ backgroundColor: '#0284c7' }} // Sky-600
                       >
                         {copy.listingViewDetails}
-                      </button>
-                      <button
-                        className="rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50 transition"
+                      </Button>
+                      <Button
+                        className="border border-rose-200 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50"
                         onClick={async () => {
                           if (!token) return;
                           try {
@@ -2592,37 +2702,20 @@ export function AppView() {
                             showToast('Failed to remove from watchlist', 'error');
                           }
                         }}
+                        resolvedTheme={resolvedTheme}
+                        variant="outline"
                       >
                         Remove
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ))}
                 {watchlistCars.length === 0 && (
-                  <div className="col-span-full rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-                    <p className="text-slate-500">No cars in your watchlist yet. Add cars you're interested in!</p>
+                  <div className={`col-span-full rounded-3xl border border-dashed p-8 text-center ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-slate-50'}`}>
+                    <p className={`text-slate-500 ${resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>No cars in your watchlist yet. Add cars you're interested in!</p>
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        );
-      case 'dealers':
-        if (!requireAuth()) return null;
-        return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900">{copy.dealersHeading}</h2>
-              <p className="text-sm text-slate-600">{copy.dealersSubheading}</p>
-            </div>
-            {dealersLoading ? (
-              <p className="text-slate-500">Loading dealers...</p>
-            ) : dealers.length ? (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {dealers.map((dealer) => renderDealerCard(dealer))}
-              </div>
-            ) : (
-              <p className="text-slate-500">{copy.dealersEmpty}</p>
             )}
           </div>
         );
@@ -2633,23 +2726,23 @@ export function AppView() {
             {/* Analytics Summary Cards */}
             {myListingsAnalytics && (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-3xl border border-slate-100 bg-gradient-to-br from-emerald-50 to-emerald-100 p-5 shadow-sm">
-                  <p className="text-xs uppercase text-emerald-700">Total Listings</p>
-                  <p className="mt-1 text-3xl font-bold text-emerald-900">{myListingsAnalytics.total_listings}</p>
+                <div className={`rounded-3xl border p-5 shadow-sm ${resolvedTheme === 'dark' ? 'border-emerald-900/50 bg-emerald-900/20' : 'border-slate-100 bg-gradient-to-br from-emerald-50 to-emerald-100'}`}>
+                  <p className={`text-xs uppercase ${resolvedTheme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'}`}>Total Listings</p>
+                  <p className={`mt-1 text-3xl font-bold ${resolvedTheme === 'dark' ? 'text-emerald-100' : 'text-emerald-900'}`}>{myListingsAnalytics.total_listings}</p>
                 </div>
-                <div className="rounded-3xl border border-slate-100 bg-gradient-to-br from-blue-50 to-blue-100 p-5 shadow-sm">
-                  <p className="text-xs uppercase text-blue-700">Total Value</p>
-                  <p className="mt-1 text-2xl font-bold text-blue-900">{formatPrice(myListingsAnalytics.total_value, 'JOD')}</p>
+                <div className={`rounded-3xl border p-5 shadow-sm ${resolvedTheme === 'dark' ? 'border-blue-900/50 bg-blue-900/20' : 'border-slate-100 bg-gradient-to-br from-blue-50 to-blue-100'}`}>
+                  <p className={`text-xs uppercase ${resolvedTheme === 'dark' ? 'text-blue-400' : 'text-blue-700'}`}>Total Value</p>
+                  <p className={`mt-1 text-2xl font-bold ${resolvedTheme === 'dark' ? 'text-blue-100' : 'text-blue-900'}`}>{formatPrice(myListingsAnalytics.total_value, 'JOD')}</p>
                 </div>
-                <div className="rounded-3xl border border-slate-100 bg-gradient-to-br from-amber-50 to-amber-100 p-5 shadow-sm">
-                  <p className="text-xs uppercase text-amber-700">Avg Price</p>
-                  <p className="mt-1 text-2xl font-bold text-amber-900">{formatPrice(myListingsAnalytics.average_price, 'JOD')}</p>
+                <div className={`rounded-3xl border p-5 shadow-sm ${resolvedTheme === 'dark' ? 'border-amber-900/50 bg-amber-900/20' : 'border-slate-100 bg-gradient-to-br from-amber-50 to-amber-100'}`}>
+                  <p className={`text-xs uppercase ${resolvedTheme === 'dark' ? 'text-amber-400' : 'text-amber-700'}`}>Avg Price</p>
+                  <p className={`mt-1 text-2xl font-bold ${resolvedTheme === 'dark' ? 'text-amber-100' : 'text-amber-900'}`}>{formatPrice(myListingsAnalytics.average_price, 'JOD')}</p>
                 </div>
-                <div className="rounded-3xl border border-slate-100 bg-gradient-to-br from-purple-50 to-purple-100 p-5 shadow-sm">
-                  <p className="text-xs uppercase text-purple-700">Favorites</p>
-                  <p className="mt-1 text-3xl font-bold text-purple-900">{myListingsAnalytics.performance.total_favorites}</p>
+                <div className={`rounded-3xl border p-5 shadow-sm ${resolvedTheme === 'dark' ? 'border-purple-900/50 bg-purple-900/20' : 'border-slate-100 bg-gradient-to-br from-purple-50 to-purple-100'}`}>
+                  <p className={`text-xs uppercase ${resolvedTheme === 'dark' ? 'text-purple-400' : 'text-purple-700'}`}>Favorites</p>
+                  <p className={`mt-1 text-3xl font-bold ${resolvedTheme === 'dark' ? 'text-purple-100' : 'text-purple-900'}`}>{myListingsAnalytics.performance.total_favorites}</p>
                   {myListingsAnalytics.performance.avg_rating > 0 && (
-                    <p className="text-sm text-purple-700">★ {myListingsAnalytics.performance.avg_rating} avg rating</p>
+                    <p className={`text-sm ${resolvedTheme === 'dark' ? 'text-purple-300' : 'text-purple-700'}`}>★ {myListingsAnalytics.performance.avg_rating} avg rating</p>
                   )}
                 </div>
               </div>
@@ -2660,19 +2753,19 @@ export function AppView() {
               <div className="grid gap-4 lg:grid-cols-2">
                 {/* Listings by Make */}
                 {myListingsAnalytics.listings_by_make.length > 0 && (
-                  <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                  <div className={`rounded-3xl border p-5 shadow-sm ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-100 bg-white'}`}>
                     <h3 className="mb-4 text-sm font-semibold uppercase text-slate-500">Listings by Make</h3>
                     <div className="space-y-2">
                       {myListingsAnalytics.listings_by_make.slice(0, 5).map((item) => (
                         <div key={item.make} className="flex items-center gap-3">
-                          <div className="h-2 flex-1 rounded-full bg-slate-100 overflow-hidden">
+                          <div className={`h-2 flex-1 rounded-full overflow-hidden ${resolvedTheme === 'dark' ? 'bg-slate-700' : 'bg-slate-100'}`}>
                             <div
                               className="h-full rounded-full bg-emerald-500"
                               style={{ width: `${(item.count / myListingsAnalytics.total_listings) * 100}%` }}
                             />
                           </div>
-                          <span className="min-w-[80px] text-sm text-slate-700">{item.make}</span>
-                          <span className="text-sm font-semibold text-slate-900">{item.count}</span>
+                          <span className={`min-w-[80px] text-sm ${resolvedTheme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>{item.make}</span>
+                          <span className={`text-sm font-semibold ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>{item.count}</span>
                         </div>
                       ))}
                     </div>
@@ -2680,25 +2773,25 @@ export function AppView() {
                 )}
 
                 {/* Price Range */}
-                <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                <div className={`rounded-3xl border p-5 shadow-sm ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-100 bg-white'}`}>
                   <h3 className="mb-4 text-sm font-semibold uppercase text-slate-500">Price Range</h3>
                   <div className="flex items-end justify-between gap-4">
                     <div>
                       <p className="text-xs text-slate-500">Lowest</p>
-                      <p className="text-xl font-bold text-slate-900">{formatPrice(myListingsAnalytics.price_range.min, 'JOD')}</p>
+                      <p className={`text-xl font-bold ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>{formatPrice(myListingsAnalytics.price_range.min, 'JOD')}</p>
                     </div>
                     <div className="flex-1 h-1 bg-gradient-to-r from-emerald-300 via-amber-300 to-rose-300 rounded-full" />
                     <div className="text-right">
                       <p className="text-xs text-slate-500">Highest</p>
-                      <p className="text-xl font-bold text-slate-900">{formatPrice(myListingsAnalytics.price_range.max, 'JOD')}</p>
+                      <p className={`text-xl font-bold ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>{formatPrice(myListingsAnalytics.price_range.max, 'JOD')}</p>
                     </div>
                   </div>
                   {myListingsAnalytics.listings_by_body_style.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-slate-100">
+                    <div className={`mt-4 pt-4 border-t ${resolvedTheme === 'dark' ? 'border-slate-700' : 'border-slate-100'}`}>
                       <p className="text-xs text-slate-500 mb-2">Body Styles</p>
                       <div className="flex flex-wrap gap-2">
                         {myListingsAnalytics.listings_by_body_style.map((item) => (
-                          <span key={item.bodyStyle} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                          <span key={item.bodyStyle} className={`rounded-full px-3 py-1 text-xs font-medium ${resolvedTheme === 'dark' ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
                             {item.bodyStyle} ({item.count})
                           </span>
                         ))}
@@ -2711,7 +2804,10 @@ export function AppView() {
 
             {/* Loading state for analytics */}
             {myListingsAnalyticsLoading && !myListingsAnalytics && (
-              <div className="rounded-3xl border border-slate-100 bg-white p-6 text-center text-slate-500">
+              <div className={`rounded-3xl border p-6 text-center ${resolvedTheme === 'dark'
+                ? 'border-slate-700 bg-slate-800 text-slate-400'
+                : 'border-slate-100 bg-white text-slate-500'
+                }`}>
                 Loading your listings analytics...
               </div>
             )}
@@ -2719,23 +2815,29 @@ export function AppView() {
             {/* Listings Header */}
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-slate-900">Your Listings ({myListings.length})</h2>
-              <button
+              <Button
                 onClick={() => setActivePage('addListing')}
-                className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                className="text-sm font-semibold text-white hover:bg-emerald-700"
+                resolvedTheme={resolvedTheme}
+                variant="primary"
+                style={{ backgroundColor: resolvedTheme === 'dark' ? '#059669' : '#059669' }} // Emerald 600
               >
                 + Add New
-              </button>
+              </Button>
             </div>
 
             {/* Listings Grid */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {myListings.map((car) => (
-                <div key={car.id} className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
+                <div key={car.id} className={`rounded-3xl border p-4 shadow-sm hover:shadow-md transition-shadow ${resolvedTheme === 'dark'
+                  ? 'border-slate-700 bg-slate-800'
+                  : 'border-slate-100 bg-white'
+                  }`}>
                   <div className="flex gap-3">
                     <img src={getCarImage(car)} alt={car.model} className="h-24 w-32 rounded-2xl object-cover" />
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-slate-900">{car.make} {car.model}</h3>
-                      <p className="text-sm text-slate-500">{car.year}</p>
+                      <h3 className={`text-lg font-semibold ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>{car.make} {car.model}</h3>
+                      <p className={`text-sm ${resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{car.year}</p>
                       <p className="text-xl font-bold text-emerald-600">{formatPrice(car.price, car.currency)}</p>
                       {car.odometerKm ? (
                         <p className="text-xs text-slate-500">{car.odometerKm.toLocaleString()} km</p>
@@ -2743,15 +2845,30 @@ export function AppView() {
                     </div>
                   </div>
                   <div className="mt-4 flex gap-2">
-                    <button className="flex-1 rounded-2xl bg-slate-900/5 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-900/10" onClick={() => handleOpenCarDetails(car.id)}>
+                    <Button
+                      className="flex-1 bg-slate-100 text-sm text-slate-900 hover:bg-slate-200"
+                      onClick={() => handleOpenCarDetails(car.id)}
+                      resolvedTheme={resolvedTheme}
+                      variant="secondary"
+                    >
                       View
-                    </button>
-                    <button className="flex-1 rounded-2xl bg-sky-500 py-2 text-sm font-semibold text-white hover:bg-sky-600" onClick={() => handleStartEditListing(car)}>
+                    </Button>
+                    <Button
+                      className="flex-1 text-sm text-white hover:bg-sky-600"
+                      onClick={() => handleStartEditListing(car)}
+                      resolvedTheme={resolvedTheme}
+                      variant="primary"
+                    >
                       Edit
-                    </button>
-                    <button className="flex-1 rounded-2xl bg-rose-500 py-2 text-sm font-semibold text-white hover:bg-rose-600" onClick={() => handleDeleteListing(car.id)}>
+                    </Button>
+                    <Button
+                      className="flex-1 text-sm text-white hover:bg-rose-600"
+                      onClick={() => handleDeleteListing(car.id)}
+                      resolvedTheme={resolvedTheme}
+                      variant="danger"
+                    >
                       Delete
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -2761,108 +2878,123 @@ export function AppView() {
             {editingListing && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
                 <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 shadow-xl">
-                  <button
+                  <Button
                     onClick={() => setEditingListing(null)}
-                    className="absolute right-4 top-4 rounded-full bg-slate-100 p-2 text-slate-600 hover:bg-slate-200"
+                    className="absolute right-4 top-4 rounded-full p-2 text-slate-600 hover:bg-slate-200"
+                    variant="secondary"
+                    resolvedTheme={resolvedTheme}
                   >
                     ✕
-                  </button>
+                  </Button>
                   <h2 className="mb-6 text-xl font-bold text-slate-900">Edit Listing</h2>
                   <form onSubmit={handleSaveEditListing} className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
                         <label className="text-xs uppercase tracking-wide text-slate-500">Make</label>
-                        <input
+                        <Input
                           type="text"
                           value={editForm.make}
                           onChange={(e) => handleEditFormInput('make', e.target.value)}
-                          className={`mt-1 w-full ${inputFieldClass}`}
+                          className="mt-1"
                           required
+                          resolvedTheme={resolvedTheme}
                         />
                       </div>
                       <div>
                         <label className="text-xs uppercase tracking-wide text-slate-500">Model</label>
-                        <input
+                        <Input
                           type="text"
                           value={editForm.model}
                           onChange={(e) => handleEditFormInput('model', e.target.value)}
-                          className={`mt-1 w-full ${inputFieldClass}`}
+                          className="mt-1"
                           required
+                          resolvedTheme={resolvedTheme}
                         />
                       </div>
                       <div>
                         <label className="text-xs uppercase tracking-wide text-slate-500">Year</label>
-                        <input
+                        <Input
                           type="number"
                           value={editForm.year}
                           onChange={(e) => handleEditFormInput('year', e.target.value)}
-                          className={`mt-1 w-full ${inputFieldClass}`}
+                          className="mt-1"
+                          resolvedTheme={resolvedTheme}
                         />
                       </div>
                       <div>
                         <label className="text-xs uppercase tracking-wide text-slate-500">Price</label>
-                        <input
+                        <Input
                           type="number"
                           value={editForm.price}
                           onChange={(e) => handleEditFormInput('price', e.target.value)}
-                          className={`mt-1 w-full ${inputFieldClass}`}
+                          className="mt-1"
+                          resolvedTheme={resolvedTheme}
                         />
                       </div>
                       <div>
                         <label className="text-xs uppercase tracking-wide text-slate-500">Body Style</label>
-                        <input
+                        <Input
                           type="text"
                           value={editForm.bodyStyle}
                           onChange={(e) => handleEditFormInput('bodyStyle', e.target.value)}
-                          className={`mt-1 w-full ${inputFieldClass}`}
+                          className="mt-1"
                           placeholder="SUV, Sedan, Coupe..."
+                          resolvedTheme={resolvedTheme}
                         />
                       </div>
                       <div>
                         <label className="text-xs uppercase tracking-wide text-slate-500">Odometer (km)</label>
-                        <input
+                        <Input
                           type="number"
                           value={editForm.odometer}
                           onChange={(e) => handleEditFormInput('odometer', e.target.value)}
-                          className={`mt-1 w-full ${inputFieldClass}`}
+                          className="mt-1"
+                          resolvedTheme={resolvedTheme}
                         />
                       </div>
                       <div>
                         <label className="text-xs uppercase tracking-wide text-slate-500">Engine</label>
-                        <input
+                        <Input
                           type="text"
                           value={editForm.engine}
                           onChange={(e) => handleEditFormInput('engine', e.target.value)}
-                          className={`mt-1 w-full ${inputFieldClass}`}
+                          className="mt-1"
                           placeholder="2.0L Turbo, V8..."
+                          resolvedTheme={resolvedTheme}
                         />
                       </div>
                       <div>
                         <label className="text-xs uppercase tracking-wide text-slate-500">Horsepower</label>
-                        <input
+                        <Input
                           type="number"
                           value={editForm.horsepower}
                           onChange={(e) => handleEditFormInput('horsepower', e.target.value)}
-                          className={`mt-1 w-full ${inputFieldClass}`}
+                          className="mt-1"
+                          resolvedTheme={resolvedTheme}
                         />
                       </div>
                     </div>
                     <div>
                       <label className="text-xs uppercase tracking-wide text-slate-500">Description</label>
-                      <textarea
+                      <Textarea
                         value={editForm.description}
                         onChange={(e) => handleEditFormInput('description', e.target.value)}
-                        className={`mt-1 h-24 w-full ${inputFieldClass}`}
+                        className="mt-1 h-24"
+                        resolvedTheme={resolvedTheme}
                       />
                     </div>
 
                     {/* Image Gallery */}
-                    <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    {/* Image Gallery */}
+                    <div className={`space-y-3 rounded-2xl border p-4 ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-slate-50'}`}>
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-semibold text-slate-900">Images ({editForm.galleryImages.length}/12)</p>
+                          <p className={`text-sm font-semibold ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>Images ({editForm.galleryImages.length}/12)</p>
                         </div>
-                        <label className="cursor-pointer rounded-2xl bg-slate-900/10 px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-900/20">
+                        <label className={`cursor-pointer rounded-2xl px-3 py-2 text-xs font-semibold hover:bg-opacity-20 ${resolvedTheme === 'dark'
+                          ? 'bg-slate-700 text-slate-100 hover:bg-slate-600'
+                          : 'bg-slate-900/10 text-slate-900 hover:bg-slate-900/20'
+                          }`}>
                           + Add Images
                           <input
                             type="file"
@@ -2877,13 +3009,15 @@ export function AppView() {
                         {editForm.galleryImages.map((url, index) => (
                           <div key={`${url}-${index}`} className="relative">
                             <img src={url} alt={`Gallery ${index + 1}`} className="h-20 w-full rounded-xl object-cover" />
-                            <button
+                            <Button
                               type="button"
                               onClick={() => handleRemoveEditGalleryImage(index)}
-                              className="absolute -right-1 -top-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-xs text-white"
+                              className="absolute -right-1 -top-1 rounded-full px-1.5 py-0.5 text-xs text-white"
+                              variant="danger"
+                              resolvedTheme={resolvedTheme}
                             >
                               ✕
-                            </button>
+                            </Button>
                           </div>
                         ))}
                       </div>
@@ -2910,13 +3044,15 @@ export function AppView() {
                           {editForm.videoUrls.map((url, index) => (
                             <div key={`video-${index}`} className="flex items-center gap-2 rounded-xl bg-white p-2">
                               <span className="flex-1 truncate text-sm text-slate-600">🎥 Video {index + 1}</span>
-                              <button
+                              <Button
                                 type="button"
                                 onClick={() => handleRemoveEditVideo(index)}
-                                className="rounded-full bg-rose-500 px-2 py-1 text-xs text-white"
+                                className="rounded-full px-2 py-1 text-xs text-white"
+                                variant="danger"
+                                resolvedTheme={resolvedTheme}
                               >
                                 Remove
-                              </button>
+                              </Button>
                             </div>
                           ))}
                         </div>
@@ -2924,20 +3060,25 @@ export function AppView() {
                     </div>
 
                     <div className="flex gap-3 pt-4">
-                      <button
+                      <Button
                         type="button"
                         onClick={() => setEditingListing(null)}
-                        className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                        className="flex-1 text-sm font-semibold"
+                        variant="outline"
+                        resolvedTheme={resolvedTheme}
                       >
                         Cancel
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="submit"
                         disabled={isSubmittingListing}
-                        className="flex-1 rounded-2xl bg-emerald-600 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                        className="flex-1 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                        variant="primary"
+                        resolvedTheme={resolvedTheme}
+                        style={{ backgroundColor: resolvedTheme === 'dark' ? '#059669' : '#059669' }} // Emerald 600
                       >
                         {isSubmittingListing ? 'Saving...' : 'Save Changes'}
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 </div>
@@ -2945,14 +3086,15 @@ export function AppView() {
             )}
 
             {myListings.length === 0 && (
-              <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-                <p className="text-slate-500 mb-4">No personal listings yet.</p>
-                <button
+              <div className={`rounded-3xl border border-dashed p-8 text-center ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-slate-50'}`}>
+                <p className={`${resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'} mb-4`}>No personal listings yet.</p>
+                <Button
                   onClick={() => setActivePage('addListing')}
-                  className="rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
+                  resolvedTheme={resolvedTheme}
+                  variant="primary"
                 >
                   Create Your First Listing
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -2961,131 +3103,132 @@ export function AppView() {
         if (!requireAuth()) return null;
         return (
           <div className="grid gap-6 lg:grid-cols-[1.2fr,0.8fr]">
-            <form className="space-y-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm" onSubmit={handleListingSubmit}>
+            <form className={`space-y-4 rounded-3xl border p-6 shadow-sm ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-100 bg-white'}`} onSubmit={handleListingSubmit}>
               <div className="grid gap-4 md:grid-cols-2">
-                <select
+                <Select
                   name="listing-make"
                   id="listing-make"
                   value={listingForm.make}
                   onChange={(event) => handleMakeSelect(event.target.value)}
-                  className={inputFieldClass}
                   required
+                  resolvedTheme={resolvedTheme}
                 >
-                  <option value="">{copy.makeSelectLabel}</option>
+                  <option value="">{copy.makeSelectLabel} *</option>
                   {availableMakeOptions.map((makeOption) => (
                     <option key={makeOption} value={makeOption}>{makeOption}</option>
                   ))}
-                </select>
-                <select
+                </Select>
+                <Select
                   name="listing-model"
                   id="listing-model"
                   value={listingForm.model}
                   onChange={(event) => handleModelSelect(event.target.value)}
-                  className={inputFieldClass}
+                  resolvedTheme={resolvedTheme}
                   required
                   disabled={!listingForm.make}
                 >
-                  <option value="">{copy.modelSelectLabel}</option>
+                  <option value="">{copy.modelSelectLabel} *</option>
                   {availableModelOptions.map((model) => (
                     <option key={model} value={model}>{model}</option>
                   ))}
-                </select>
-                <input name="listing-year" id="listing-year" value={listingForm.year} onChange={(event) => handleListingInput('year', event.target.value)} placeholder="Year" className={inputFieldClass} required />
-                <input name="listing-price" id="listing-price" value={listingForm.price} onChange={(event) => handleListingInput('price', event.target.value)} placeholder="Price" className={inputFieldClass} required />
-                <select name="listing-currency" id="listing-currency" value={listingForm.currency} onChange={(event) => handleListingInput('currency', event.target.value)} className={inputFieldClass}>
+                </Select>
+                <Input name="listing-year" id="listing-year" value={listingForm.year} onChange={(event) => handleListingInput('year', event.target.value)} placeholder="Year *" required resolvedTheme={resolvedTheme} />
+                <Input name="listing-price" id="listing-price" value={listingForm.price} onChange={(event) => handleListingInput('price', event.target.value)} placeholder="Price *" required resolvedTheme={resolvedTheme} />
+                <Select name="listing-currency" id="listing-currency" value={listingForm.currency} onChange={(event) => handleListingInput('currency', event.target.value)} resolvedTheme={resolvedTheme}>
                   {CURRENCY_OPTIONS.map((currency) => (
                     <option key={currency} value={currency}>{currency}</option>
                   ))}
-                </select>
-                <input name="listing-bodystyle" id="listing-bodystyle" value={listingForm.bodyStyle} onChange={(event) => handleListingInput('bodyStyle', event.target.value)} placeholder="Body style" className={inputFieldClass} />
-                <input name="listing-horsepower" id="listing-horsepower" value={listingForm.horsepower} onChange={(event) => handleListingInput('horsepower', event.target.value)} placeholder="Horsepower" className={inputFieldClass} />
+                </Select>
+                <Input name="listing-bodystyle" id="listing-bodystyle" value={listingForm.bodyStyle} onChange={(event) => handleListingInput('bodyStyle', event.target.value)} placeholder="Body style *" required resolvedTheme={resolvedTheme} />
+                <Input name="listing-horsepower" id="listing-horsepower" value={listingForm.horsepower} onChange={(event) => handleListingInput('horsepower', event.target.value)} placeholder="Horsepower" resolvedTheme={resolvedTheme} />
                 {availableEngineOptions.length > 0 ? (
-                  <select
+                  <Select
                     name="listing-engine"
                     id="listing-engine"
                     value={listingForm.engine}
                     onChange={(event) => handleListingInput('engine', event.target.value)}
-                    className={inputFieldClass}
                     disabled={!listingForm.model}
+                    resolvedTheme={resolvedTheme}
                   >
                     <option value="">{copy.engineSelectLabel}</option>
                     {availableEngineOptions.map((engine) => (
                       <option key={engine} value={engine}>{engine}</option>
                     ))}
-                  </select>
+                  </Select>
                 ) : (
-                  <input name="listing-engine" id="listing-engine" value={listingForm.engine} onChange={(event) => handleListingInput('engine', event.target.value)} placeholder={copy.engineSelectLabel} className={inputFieldClass} />
+                  <Input name="listing-engine" id="listing-engine" value={listingForm.engine} onChange={(event) => handleListingInput('engine', event.target.value)} placeholder={copy.engineSelectLabel} resolvedTheme={resolvedTheme} />
                 )}
-                <input name="listing-fueleconomy" id="listing-fueleconomy" value={listingForm.fuelEconomy} onChange={(event) => handleListingInput('fuelEconomy', event.target.value)} placeholder="Fuel economy" className={inputFieldClass} />
-                <input
+                <Input name="listing-fueleconomy" id="listing-fueleconomy" value={listingForm.fuelEconomy} onChange={(event) => handleListingInput('fuelEconomy', event.target.value)} placeholder="Fuel economy" resolvedTheme={resolvedTheme} />
+                <Input
                   name="listing-odometer"
                   id="listing-odometer"
                   value={listingForm.odometer}
+                  required
                   onChange={(event) => handleListingInput('odometer', event.target.value)}
-                  placeholder={copy.odometerLabel}
-                  className={inputFieldClass}
+                  placeholder={`${copy.odometerLabel} *`}
                   type="number"
                   min="0"
+                  resolvedTheme={resolvedTheme}
                 />
-                <input name="listing-image" id="listing-image" value={listingForm.image} onChange={(event) => handleListingInput('image', event.target.value)} placeholder="Image URL" className={inputFieldClass} />
+                <Input name="listing-image" id="listing-image" value={listingForm.image} onChange={(event) => handleListingInput('image', event.target.value)} placeholder="Image URL" resolvedTheme={resolvedTheme} />
               </div>
 
               {/* Additional Vehicle Details */}
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
-                <p className="mb-3 text-sm font-semibold text-slate-700">Additional Details (Optional)</p>
+              <div className={`rounded-2xl border p-4 ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50/50'}`}>
+                <p className={`mb-3 text-sm font-semibold ${resolvedTheme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>Additional Details (Optional)</p>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  <select name="listing-category" value={listingForm.category} onChange={(e) => handleListingInput('category', e.target.value)} className={inputFieldClass}>
+                  <Select name="listing-category" value={listingForm.category} onChange={(e) => handleListingInput('category', e.target.value)} resolvedTheme={resolvedTheme}>
                     {CATEGORY_OPTIONS.filter(c => c.value !== 'all').map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
-                  </select>
-                  <select name="listing-condition" value={listingForm.condition} onChange={(e) => handleListingInput('condition', e.target.value)} className={inputFieldClass}>
+                  </Select>
+                  <Select name="listing-condition" value={listingForm.condition} onChange={(e) => handleListingInput('condition', e.target.value)} resolvedTheme={resolvedTheme}>
                     {CONDITION_OPTIONS.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
-                  </select>
-                  <select name="listing-transmission" value={listingForm.transmission} onChange={(e) => handleListingInput('transmission', e.target.value)} className={inputFieldClass}>
+                  </Select>
+                  <Select name="listing-transmission" value={listingForm.transmission} onChange={(e) => handleListingInput('transmission', e.target.value)} resolvedTheme={resolvedTheme}>
                     {TRANSMISSION_OPTIONS.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
-                  </select>
-                  <select name="listing-fueltype" value={listingForm.fuelType} onChange={(e) => handleListingInput('fuelType', e.target.value)} className={inputFieldClass}>
+                  </Select>
+                  <Select name="listing-fueltype" value={listingForm.fuelType} onChange={(e) => handleListingInput('fuelType', e.target.value)} resolvedTheme={resolvedTheme}>
                     {FUEL_TYPE_OPTIONS.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
-                  </select>
-                  <select name="listing-regionalspec" value={listingForm.regionalSpec} onChange={(e) => handleListingInput('regionalSpec', e.target.value)} className={inputFieldClass}>
+                  </Select>
+                  <Select name="listing-regionalspec" value={listingForm.regionalSpec} onChange={(e) => handleListingInput('regionalSpec', e.target.value)} resolvedTheme={resolvedTheme}>
                     {REGIONAL_SPEC_OPTIONS.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
-                  </select>
-                  <select name="listing-paymenttype" value={listingForm.paymentType} onChange={(e) => handleListingInput('paymentType', e.target.value)} className={inputFieldClass}>
+                  </Select>
+                  <Select name="listing-paymenttype" value={listingForm.paymentType} onChange={(e) => handleListingInput('paymentType', e.target.value)} resolvedTheme={resolvedTheme}>
                     {PAYMENT_TYPE_OPTIONS.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
-                  </select>
-                  <input name="listing-trim" value={listingForm.trim} onChange={(e) => handleListingInput('trim', e.target.value)} placeholder="Trim (SE, Sport, etc.)" className={inputFieldClass} />
-                  <input name="listing-exteriorcolor" value={listingForm.exteriorColor} onChange={(e) => handleListingInput('exteriorColor', e.target.value)} placeholder="Exterior Color" className={inputFieldClass} />
-                  <input name="listing-interiorcolor" value={listingForm.interiorColor} onChange={(e) => handleListingInput('interiorColor', e.target.value)} placeholder="Interior Color" className={inputFieldClass} />
-                  <input name="listing-city" value={listingForm.city} onChange={(e) => handleListingInput('city', e.target.value)} placeholder="City" className={inputFieldClass} />
-                  <input name="listing-neighborhood" value={listingForm.neighborhood} onChange={(e) => handleListingInput('neighborhood', e.target.value)} placeholder="Neighborhood" className={inputFieldClass} />
+                  </Select>
+                  <Input name="listing-trim" value={listingForm.trim} onChange={(e) => handleListingInput('trim', e.target.value)} placeholder="Trim (SE, Sport, etc.)" resolvedTheme={resolvedTheme} />
+                  <Input name="listing-exteriorcolor" value={listingForm.exteriorColor} onChange={(e) => handleListingInput('exteriorColor', e.target.value)} placeholder="Exterior Color" resolvedTheme={resolvedTheme} />
+                  <Input name="listing-interiorcolor" value={listingForm.interiorColor} onChange={(e) => handleListingInput('interiorColor', e.target.value)} placeholder="Interior Color" resolvedTheme={resolvedTheme} />
+                  <Input name="listing-city" value={listingForm.city} onChange={(e) => handleListingInput('city', e.target.value)} placeholder="City" resolvedTheme={resolvedTheme} />
+                  <Input name="listing-neighborhood" value={listingForm.neighborhood} onChange={(e) => handleListingInput('neighborhood', e.target.value)} placeholder="Neighborhood" resolvedTheme={resolvedTheme} />
                 </div>
               </div>
 
-              <textarea name="listing-description" id="listing-description" value={listingForm.description} onChange={(event) => handleListingInput('description', event.target.value)} placeholder="Description" className={`h-32 w-full ${inputFieldClass}`}
+              <Textarea name="listing-description" id="listing-description" value={listingForm.description} onChange={(event) => handleListingInput('description', event.target.value)} placeholder="Description" className="h-32" resolvedTheme={resolvedTheme}
               />
               <div className="flex flex-wrap gap-3">
-                <button type="button" className="rounded-2xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white" onClick={handlePriceAssist}>
+                <Button type="button" className="text-sm font-semibold text-white bg-sky-600" onClick={handlePriceAssist} resolvedTheme={resolvedTheme} variant="primary">
                   {copy.priceAssistLabel}
-                </button>
-                <label htmlFor="upload-photo-input" className="cursor-pointer rounded-2xl border border-dashed border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900">
+                </Button>
+                <label htmlFor="upload-photo-input" className={`cursor-pointer rounded-2xl border border-dashed px-4 py-2 text-sm font-semibold transition hover:opacity-80 ${resolvedTheme === 'dark' ? 'border-slate-600 text-slate-200 hover:bg-slate-800' : 'border-slate-300 text-slate-900 hover:bg-slate-50'}`}>
                   {copy.uploadPhotoLabel}
                   <input type="file" name="upload-photo" id="upload-photo-input" accept="image/*" className="hidden" onChange={(event) => {
                     const file = event.target.files?.[0];
                     if (file) handleUploadImage(file);
                   }} />
                 </label>
-                <label htmlFor="vision-helper-input" className="cursor-pointer rounded-2xl border border-dashed border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900">
+                <label htmlFor="vision-helper-input" className={`cursor-pointer rounded-2xl border border-dashed px-4 py-2 text-sm font-semibold transition hover:opacity-80 ${resolvedTheme === 'dark' ? 'border-slate-600 text-slate-200 hover:bg-slate-800' : 'border-slate-300 text-slate-900 hover:bg-slate-50'}`}>
                   {copy.visionHelperLabel}
                   <input type="file" name="vision-helper" id="vision-helper-input" accept="image/*" className="hidden" onChange={(event) => {
                     const file = event.target.files?.[0];
@@ -3093,13 +3236,13 @@ export function AppView() {
                   }} />
                 </label>
               </div>
-              <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className={`space-y-3 rounded-2xl border p-4 ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50'}`}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">{copy.galleryLabel}</p>
+                    <p className={`text-sm font-semibold ${resolvedTheme === 'dark' ? 'text-slate-200' : 'text-slate-900'}`}>{copy.galleryLabel}</p>
                     <p className="text-xs text-slate-500">Upload up to 12 images (PNG, JPG, JPEG, GIF, WEBP)</p>
                   </div>
-                  <label className="cursor-pointer rounded-2xl border border-dashed border-slate-300 px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-100">
+                  <label className={`cursor-pointer rounded-2xl border border-dashed px-3 py-2 text-xs font-semibold ${resolvedTheme === 'dark' ? 'border-slate-600 text-slate-200 hover:bg-slate-700' : 'border-slate-300 text-slate-900 hover:bg-slate-100'}`}>
                     📷 {copy.galleryUploadLabel} ({listingForm.galleryImages.length}/12)
                     <input
                       type="file"
@@ -3117,11 +3260,11 @@ export function AppView() {
                     <p className="text-sm text-slate-500 sm:col-span-3 md:col-span-4">{copy.galleryEmpty}</p>
                   )}
                   {listingForm.galleryImages.map((url, index) => (
-                    <div key={`${url}-${index}`} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                    <div key={`${url}-${index}`} className={`relative overflow-hidden rounded-2xl border ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
                       <img src={url} alt={`Gallery ${index + 1}`} className="h-32 w-full object-cover" />
-                      <button type="button" className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-rose-500 hover:bg-rose-100" onClick={() => handleRemoveGalleryImage(index)}>
+                      <Button type="button" className="absolute right-2 top-2 rounded-full px-2 py-1 text-xs font-semibold text-rose-500 bg-white/90 hover:bg-rose-100" onClick={() => handleRemoveGalleryImage(index)} resolvedTheme={resolvedTheme} variant="secondary">
                         ✕
-                      </button>
+                      </Button>
                       {index === 0 && (
                         <span className="absolute left-2 top-2 rounded-full bg-indigo-500 px-2 py-0.5 text-xs font-semibold text-white">Main</span>
                       )}
@@ -3132,10 +3275,11 @@ export function AppView() {
                 <div className="mt-4 border-t border-slate-200 pt-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">{copy.videoLabel}</p>
+                      <p className={`text-sm font-semibold ${resolvedTheme === 'dark' ? 'text-slate-200' : 'text-slate-900'}`}>{copy.videoLabel}</p>
                       <p className="text-xs text-slate-500">Upload up to 2 videos (MP4, MOV, AVI, MKV, WEBM - Max 100MB each)</p>
                     </div>
-                    <label className="cursor-pointer rounded-2xl border border-dashed border-slate-300 px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-100">
+
+                    <label className={`cursor-pointer rounded-2xl border border-dashed px-3 py-2 text-xs font-semibold ${resolvedTheme === 'dark' ? 'border-slate-600 text-slate-200 hover:bg-slate-700' : 'border-slate-300 text-slate-900 hover:bg-slate-100'}`}>
                       🎥 Upload Video ({listingForm.videoUrls.length}/2)
                       <input
                         type="file"
@@ -3153,7 +3297,7 @@ export function AppView() {
                       <p className="text-sm text-slate-500 sm:col-span-2">No videos uploaded yet</p>
                     )}
                     {listingForm.videoUrls.map((url, index) => (
-                      <div key={`video-${url}-${index}`} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                      <div key={`video-${url}-${index}`} className={`relative overflow-hidden rounded-2xl border ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
                         <video src={url} className="h-32 w-full object-cover" controls />
                         <button type="button" className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-rose-500 hover:bg-rose-100" onClick={() => handleRemoveVideo(index)}>
                           ✕
@@ -3163,34 +3307,56 @@ export function AppView() {
                   </div>
                 </div>
               </div>
-              {priceEstimate && (
-                <div className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-900">
-                  Suggested price {formatPrice(priceEstimate.value, priceEstimate.currency)}
-                  {priceEstimate.range && (
-                    <p className="text-emerald-700">
-                      Range {formatPrice(priceEstimate.range.low, priceEstimate.currency)} → {formatPrice(priceEstimate.range.high, priceEstimate.currency)}
-                    </p>
-                  )}
-                </div>
-              )}
-              {visionSuggestion && (
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-600">
-                  <p className="font-semibold text-slate-900">Vision insights</p>
-                  {visionSuggestion.highlights?.map((highlight, index) => (
-                    <p key={index}>• {highlight}</p>
-                  ))}
-                </div>
-              )}
-              <button className="w-full rounded-2xl bg-emerald-600 py-3 text-lg font-semibold text-white" disabled={isSubmittingListing}>
+              {
+                priceEstimate && (
+                  <div className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-900">
+                    Suggested price {formatPrice(priceEstimate.value, priceEstimate.currency)}
+                    {priceEstimate.range && (
+                      <p className="text-emerald-700">
+                        Range {formatPrice(priceEstimate.range.low, priceEstimate.currency)} → {formatPrice(priceEstimate.range.high, priceEstimate.currency)}
+                      </p>
+                    )}
+                  </div>
+                )
+              }
+              {
+                visionSuggestion && (
+                  <div className={`rounded-2xl border p-4 text-sm ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800/50 text-slate-300' : 'border-slate-100 bg-slate-50 text-slate-600'}`}>
+                    <p className={`font-semibold ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>Vision insights</p>
+                    {visionSuggestion.highlights?.map((highlight, index) => (
+                      <p key={index}>• {highlight}</p>
+                    ))}
+                  </div>
+                )
+              }
+              <Button
+                className="w-full text-lg"
+                disabled={isSubmittingListing}
+                resolvedTheme={resolvedTheme}
+                size="lg"
+                style={{ backgroundColor: resolvedTheme === 'dark' ? '#059669' : '#059669' }} // Emerald 600
+              >
                 {isSubmittingListing ? 'Publishing...' : 'Publish Listing'}
-              </button>
-            </form>
-            <div className="space-y-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-              <h3 className="text-xl font-semibold text-slate-900">Vision Helper Tips</h3>
-              <p className="text-sm text-slate-600">Upload clear daylight shots. The AI will detect make, model, color, and condition to pre-fill your listing.</p>
+              </Button>
+            </form >
+            <div className={`space-y-4 rounded-3xl border p-6 shadow-sm ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-100 bg-white'}`}>
+              <h3 className={`text-xl font-semibold ${resolvedTheme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>Vision Helper Tips</h3>
+              <p className={`text-sm ${resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Upload clear daylight shots. The AI will detect make, model, color, and condition to pre-fill your listing.</p>
               {visionLoading && <p className="text-slate-500">Analyzing image...</p>}
             </div>
-          </div>
+          </div >
+        );
+      case 'dealers':
+        return (
+          <DealersPage
+            token={token}
+            user={user}
+            theme={resolvedTheme}
+            onShowToast={(message, type) => {
+              setToast({ message, type });
+              setTimeout(() => setToast(null), 3000);
+            }}
+          />
         );
       case 'profile':
         return renderProfilePanel();
@@ -3315,23 +3481,23 @@ export function AppView() {
                   </button>
 
                   {settingsOpen && (
-                    <div className="absolute right-0 top-full mt-4 w-72 origin-top-right overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl ring-1 ring-slate-100 z-50">
-                      <div className="bg-gradient-to-br from-indigo-50 to-sky-50 px-6 py-4 border-b border-slate-100">
-                        <p className="text-xs font-bold uppercase tracking-wider text-indigo-900">{copy.settingsTitle}</p>
-                        <p className="text-sm text-indigo-700">{copy.settingsSubtitle}</p>
+                    <div className={`absolute right-0 top-full mt-4 w-72 origin-top-right overflow-hidden rounded-3xl border shadow-2xl ring-1 ring-slate-100 z-50 ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                      <div className={`px-6 py-4 border-b ${resolvedTheme === 'dark' ? 'bg-gradient-to-br from-indigo-950 to-slate-900 border-slate-800' : 'bg-gradient-to-br from-indigo-50 to-sky-50 border-slate-100'}`}>
+                        <p className={`text-xs font-bold uppercase tracking-wider ${resolvedTheme === 'dark' ? 'text-indigo-300' : 'text-indigo-900'}`}>{copy.settingsTitle}</p>
+                        <p className={`text-sm ${resolvedTheme === 'dark' ? 'text-indigo-200' : 'text-indigo-700'}`}>{copy.settingsSubtitle}</p>
                       </div>
                       <div className="p-2">
                         <button
                           onClick={() => { setActivePage('profile'); setSettingsOpen(false); }}
-                          className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-slate-50 transition"
+                          className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left transition ${resolvedTheme === 'dark' ? 'hover:bg-slate-800' : 'hover:bg-slate-50'}`}
                         >
-                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-xl">👤</span>
+                          <span className={`flex h-10 w-10 items-center justify-center rounded-full text-xl ${resolvedTheme === 'dark' ? 'bg-indigo-900 text-indigo-300' : 'bg-indigo-100'}`}>👤</span>
                           <div>
-                            <p className="font-semibold text-sm text-slate-900">{mounted && user ? copy.settingsProfileCta : copy.settingsProfileGuest}</p>
+                            <p className={`font-semibold text-sm ${resolvedTheme === 'dark' ? 'text-slate-200' : 'text-slate-900'}`}>{mounted && user ? copy.settingsProfileCta : copy.settingsProfileGuest}</p>
                             <p className="text-xs text-slate-600">{mounted && user?.email ? user.email : 'Manage account'}</p>
                           </div>
                         </button>
-                        <div className="my-2 h-px bg-slate-200" />
+                        <div className={`my-2 h-px ${resolvedTheme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'}`} />
                         <div className="space-y-4 px-3 py-2">
                           {/* Language Selector */}
                           <div>
@@ -3343,7 +3509,7 @@ export function AppView() {
                                   onClick={() => setLanguage(opt.value)}
                                   className={`rounded-lg py-1.5 text-xs font-semibold transition ${language === opt.value
                                     ? 'bg-indigo-600 text-white shadow-md'
-                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                    : resolvedTheme === 'dark' ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                                     }`}
                                 >
                                   {opt.label}
@@ -3354,11 +3520,11 @@ export function AppView() {
 
                           {/* Currency Selector */}
                           <div>
-                            <label className="mb-1 block text-xs font-bold text-slate-700">{copy.settingsCurrency}</label>
+                            <label className={`mb-1 block text-xs font-bold ${resolvedTheme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>{copy.settingsCurrency}</label>
                             <select
                               value={currency}
                               onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
-                              className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                              className={`w-full appearance-none rounded-xl border px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${resolvedTheme === 'dark' ? 'border-slate-700 bg-slate-800 text-white' : 'border-slate-200 bg-white text-slate-900'}`}
                             >
                               {CURRENCY_OPTIONS.map((code) => (
                                 <option key={code} value={code}>{code}</option>
@@ -3376,7 +3542,7 @@ export function AppView() {
                                   onClick={() => setTheme(opt.value)}
                                   className={`rounded-lg py-2 text-xs font-semibold transition ${theme === opt.value
                                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
-                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                    : resolvedTheme === 'dark' ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                                     }`}
                                 >
                                   {copy[opt.labelKey]}
@@ -3387,11 +3553,11 @@ export function AppView() {
                           <div className="mt-2">
                             {!user ? (
                               <div className="grid grid-cols-2 gap-2 p-1">
-                                <button onClick={() => { setActivePage('profile'); setSettingsOpen(false); }} className="rounded-xl border border-slate-300 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition">Sign In</button>
+                                <button onClick={() => { setActivePage('profile'); setSettingsOpen(false); }} className={`rounded-xl border py-2.5 text-sm font-bold transition ${resolvedTheme === 'dark' ? 'border-slate-600 text-slate-200 hover:bg-slate-800' : 'border-slate-300 text-slate-700 hover:bg-slate-50'}`}>Sign In</button>
                                 <button onClick={() => { setActivePage('profile'); setSettingsOpen(false); }} className="rounded-xl bg-indigo-600 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 transition shadow-md">Sign Up</button>
                               </div>
                             ) : (
-                              <button onClick={() => { logout(); setSettingsOpen(false); }} className="w-full rounded-xl border border-rose-200 py-2.5 text-center text-sm font-bold text-rose-600 hover:bg-rose-50 transition">Sign Out</button>
+                              <button onClick={() => { logout(); setSettingsOpen(false); }} className={`w-full rounded-xl border py-2.5 text-center text-sm font-bold transition ${resolvedTheme === 'dark' ? 'border-rose-900/50 text-rose-400 hover:bg-rose-900/20' : 'border-rose-200 text-rose-600 hover:bg-rose-50'}`}>Sign Out</button>
                             )}
                           </div>
                         </div>
@@ -3489,12 +3655,12 @@ function camelToTitle(value: string) {
     .replace(/^./, (str) => str.toUpperCase());
 }
 
-function formatAIResponse(text: string): React.ReactElement {
+function formatAIResponse(text: string, theme: string): React.ReactElement {
   // Convert markdown formatting to clean HTML
   let formatted = text;
 
   // Remove ** bold markers and replace with strong tags
-  formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-slate-900">$1</strong>');
+  formatted = formatted.replace(/\*\*(.+?)\*\*/g, `<strong class="font-semibold ${theme === 'dark' ? 'text-slate-100' : 'text-slate-900'}">$1</strong>`);
 
   // Remove single * for bullet points and replace with proper list items
   const lines = formatted.split('\n');
@@ -3511,7 +3677,7 @@ function formatAIResponse(text: string): React.ReactElement {
         inList = true;
       }
       const content = line.substring(2).trim();
-      processedLines.push(`<li class="flex gap-2"><span class="text-indigo-600 font-bold">•</span><span>${content}</span></li>`);
+      processedLines.push(`<li class="flex gap-2"><span class="${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'} font-bold">•</span><span>${content}</span></li>`);
     } else if (line.match(/^\d+\.\s/)) {
       // Numbered list
       if (!inList) {
@@ -3520,7 +3686,7 @@ function formatAIResponse(text: string): React.ReactElement {
       }
       const content = line.replace(/^\d+\.\s/, '').trim();
       const num = line.match(/^(\d+)\./)?.[1] || '1';
-      processedLines.push(`<li class="flex gap-2"><span class="text-indigo-600 font-semibold">${num}.</span><span>${content}</span></li>`);
+      processedLines.push(`<li class="flex gap-2"><span class="${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'} font-semibold">${num}.</span><span>${content}</span></li>`);
     } else {
       if (inList) {
         processedLines.push('</ul>');

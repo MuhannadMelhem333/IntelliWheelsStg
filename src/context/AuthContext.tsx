@@ -5,6 +5,8 @@ import { STORAGE_KEYS, CurrencyCode, CURRENCY_RATES, convertCurrency as convertC
 import { getProfile, loginUser, logoutUser, signupUser, updateProfile, verifySession } from '@/lib/api';
 import { UserProfile } from '@/lib/types';
 
+type ThemeMode = 'light' | 'dark' | 'system';
+
 interface AuthContextValue {
   user: UserProfile | null;
   token: string | null;
@@ -21,6 +23,9 @@ interface AuthContextValue {
   setCurrency: (currency: CurrencyCode) => void;
   formatPrice: (value: number | undefined | null, sourceCurrency?: CurrencyCode) => string;
   convertCurrency: (amount: number, from: CurrencyCode, to?: CurrencyCode) => number;
+  // Theme support
+  theme: ThemeMode;
+  setTheme: (theme: ThemeMode) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -31,6 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currency, setCurrencyState] = useState<CurrencyCode>('JOD');
+  const [theme, setThemeState] = useState<ThemeMode>('light');
 
   // Load persisted currency preference
   useEffect(() => {
@@ -40,10 +46,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
+  // Load persisted theme preference
+  useEffect(() => {
+    const storedTheme = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.theme) as ThemeMode | null : null;
+    if (storedTheme) {
+      setThemeState(storedTheme);
+    }
+  }, []);
+
   const setCurrency = useCallback((newCurrency: CurrencyCode) => {
     setCurrencyState(newCurrency);
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEYS.currency, newCurrency);
+    }
+  }, []);
+
+  const setTheme = useCallback((newTheme: ThemeMode) => {
+    setThemeState(newTheme);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.theme, newTheme);
+      // Apply theme class to document
+      const isDark = newTheme === 'dark' || (newTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
     }
   }, []);
 
@@ -237,7 +265,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setCurrency,
     formatPrice,
     convertCurrency,
-  }), [user, token, loading, error, handleLogin, handleSignup, handleLogout, refreshProfile, updateMyProfile, currency, setCurrency, formatPrice, convertCurrency]);
+    // Theme support
+    theme,
+    setTheme,
+  }), [user, token, loading, error, handleLogin, handleSignup, handleLogout, refreshProfile, updateMyProfile, currency, setCurrency, formatPrice, convertCurrency, theme, setTheme]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
