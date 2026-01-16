@@ -222,6 +222,7 @@ export interface Dealer {
   verified?: boolean;
   created_at?: string;
   distance?: number; // Calculated distance from user
+  hero_image?: string | null; // Added to match component usage
 }
 
 export interface DealerSummary {
@@ -236,8 +237,15 @@ export interface DealerSummary {
 }
 
 export interface DealerDetail extends Dealer {
-  inventory: Car[];
+  cars: Car[]; // Renamed from inventory to match component usage
   reviews: Review[];
+
+  // Additional fields from DealerSummary used in view
+  total_listings?: number;
+  average_price?: number | null;
+  top_makes?: Array<{ make: string; count: number; average_price?: number | null }>;
+  member_since?: string;
+  email?: string;
 }
 
 export interface DealerRegistration {

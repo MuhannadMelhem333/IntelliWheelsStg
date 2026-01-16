@@ -75,7 +75,7 @@ export function DealerDetailModal({ dealer, onClose, theme = 'light' }: DealerDe
                     <div className={`mt-4 flex gap-1 border-b ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
                         {[
                             { id: 'overview', label: 'Overview', icon: '📋' },
-                            { id: 'inventory', label: `Inventory (${dealer.inventory?.length || 0})`, icon: '🚗' },
+                            { id: 'inventory', label: `Inventory (${dealer.cars?.length || 0})`, icon: '🚗' },
                             { id: 'contact', label: 'Contact', icon: '📞' },
                         ].map((tab) => (
                             <button
@@ -157,9 +157,9 @@ export function DealerDetailModal({ dealer, onClose, theme = 'light' }: DealerDe
                     {/* Inventory Tab */}
                     {activeTab === 'inventory' && (
                         <div>
-                            {dealer.inventory && dealer.inventory.length > 0 ? (
+                            {dealer.cars && dealer.cars.length > 0 ? (
                                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                    {dealer.inventory.map((car) => (
+                                    {dealer.cars.map((car) => (
                                         <div key={car.id} className={`group overflow-hidden rounded-2xl border transition-shadow hover:shadow-lg ${theme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
                                             <div className="relative h-48 overflow-hidden">
                                                 <img

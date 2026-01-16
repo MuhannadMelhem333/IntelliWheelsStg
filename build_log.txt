@@ -1,0 +1,30 @@
+
+> intelliwheels-fullstack@0.1.0 build
+> next build
+
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\muhan\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\muhan\Downloads\IntelliWheels_FullStack-main\IntelliWheels_FullStack-main\package-lock.json
+
+▲ Next.js 16.1.1 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 5.6s
+  Running TypeScript ...
+Failed to compile.
+
+./src/components/DealerCard.tsx:95:21
+Type error: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+
+[0m [90m 93 |[39m                 [33m<[39m[33mButton[39m
+ [90m 94 |[39m                     className[33m=[39m[32m"mt-4 w-full font-semibold transition-colors hover:bg-indigo-700 bg-indigo-600"[39m
+[31m[1m>[22m[39m[90m 95 |[39m                     resolvedTheme[33m=[39m{resolvedTheme}
+ [90m    |[39m                     [31m[1m^[22m[39m
+ [90m 96 |[39m                     variant[33m=[39m[32m"primary"[39m
+ [90m 97 |[39m                     style[33m=[39m{{ backgroundColor[33m:[39m [32m'#4f46e5'[39m }} [90m// Indigo-600[39m
+ [90m 98 |[39m                 [33m>[39m[0m
+Next.js build worker exited with code: 1 and signal: null

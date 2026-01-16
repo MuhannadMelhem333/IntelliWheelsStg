@@ -2,13 +2,13 @@ import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
-    resolvedTheme: string;
+    resolvedTheme?: string;
     size?: 'sm' | 'md' | 'lg';
 }
 
 export const Button: React.FC<ButtonProps> = ({
     variant = 'primary',
-    resolvedTheme,
+    resolvedTheme = 'light',
     size = 'md',
     className = '',
     children,
