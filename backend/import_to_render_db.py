@@ -136,14 +136,15 @@ def import_to_postgres(database_url: str, cars: list):
     print(f"📊 Existing cars in database: {existing}")
     
     if existing > 0:
-        response = input(f"⚠️  Database already has {existing} cars. Delete and reimport? (y/n): ")
-        if response.lower() != 'y':
-            print("❌ Aborted.")
+        if os.environ.get('FORCE_REIMPORT'):
+            print(f"⚠️  Database has {existing} cars. FORCE_REIMPORT is set. Clearing data...")
+            cursor.execute("DELETE FROM cars")
+            conn.commit()
+            print("🗑️  Cleared existing cars.")
+        else:
+            print(f"✅ Database already has {existing} cars. Skipping import.")
             conn.close()
             return
-        cursor.execute("DELETE FROM cars")
-        conn.commit()
-        print("🗑️  Cleared existing cars.")
     
     # Insert cars
     for car in cars:
@@ -186,10 +187,6 @@ def main():
     
     if not database_url:
         print("\n⚠️  DATABASE_URL not found in environment.")
-        print("Get it from Render Dashboard → Your Database → External Connection String")
-        database_url = input("\nPaste your Render DATABASE_URL: ").strip()
-    
-    if not database_url:
         print("❌ No DATABASE_URL provided. Exiting.")
         return
     
