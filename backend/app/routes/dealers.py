@@ -31,7 +31,7 @@ def get_dealers():
     radius = request.args.get('radius', type=float, default=50)  # Default 50km radius
     
     # Get all dealers
-    cursor = db.execute('SELECT * FROM dealers WHERE verified = ? OR verified = 1 ORDER BY rating DESC', (True,))
+    cursor = db.execute('SELECT * FROM dealers WHERE verified = ? ORDER BY rating DESC', (True,))
     dealers = [dict(row) for row in cursor.fetchall()]
     
     # Parse JSON fields
