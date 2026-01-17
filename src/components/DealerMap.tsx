@@ -32,13 +32,17 @@ export function DealerMap({ dealers, onDealerClick, userLocation, theme = 'light
       attributionControl: false,
     }).setView([31.9539, 35.9106], 8); // Center on Jordan
 
-    // Modern futuristic tile layers - using Stamen Toner for sleek look
-    const lightTileUrl = 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png';
-    const darkTileUrl = 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png';
+    // Use free tile providers to avoid 401 errors
+    // Light: OpenStreetMap (Standard)
+    // Dark: CartoDB Dark Matter
+    const lightTileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    const darkTileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 
     const tileLayer = L.tileLayer(theme === 'dark' ? darkTileUrl : lightTileUrl, {
       maxZoom: 20,
-      attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>',
+      attribution: theme === 'dark'
+        ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map);
 
     setMapInstance({ map, tileLayer });
@@ -57,8 +61,9 @@ export function DealerMap({ dealers, onDealerClick, userLocation, theme = 'light
     const { map, tileLayer } = mapInstance;
 
     // Update tile layer for theme with modern styles
-    const lightTileUrl = 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png';
-    const darkTileUrl = 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png';
+    // Update tile layer for theme with modern styles
+    const lightTileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    const darkTileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 
     tileLayer.setUrl(theme === 'dark' ? darkTileUrl : lightTileUrl);
   }, [theme, mapInstance, L]);
@@ -79,7 +84,7 @@ export function DealerMap({ dealers, onDealerClick, userLocation, theme = 'light
     const dealerIcon = L.divIcon({
       className: 'custom-dealer-marker',
       html: `
-        <div class="relative animate-float">
+        <div class="relative">
           <div class="absolute -inset-2 bg-gradient-to-r from-sky-400 to-indigo-500 rounded-full blur-md opacity-75 animate-pulse-glow"></div>
           <div class="relative ${theme === 'dark' ? 'bg-gradient-to-br from-sky-500 to-indigo-600' : 'bg-gradient-to-br from-sky-600 to-indigo-700'} rounded-2xl p-3 shadow-2xl border-2 ${theme === 'dark' ? 'border-sky-400/50' : 'border-white/50'} transform hover:scale-110 transition-all duration-300 cursor-pointer backdrop-blur-sm">
             <svg class="w-6 h-6 text-white drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -204,16 +209,9 @@ export function DealerMap({ dealers, onDealerClick, userLocation, theme = 'light
           background: transparent;
           border: none;
         }
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-6px); }
-        }
         @keyframes pulse-glow {
           0%, 100% { opacity: 0.75; }
           50% { opacity: 0.4; }
-        }
-        .animate-float {
-          animation: float 3s ease-in-out infinite;
         }
         .animate-pulse-glow {
           animation: pulse-glow 2s ease-in-out infinite;

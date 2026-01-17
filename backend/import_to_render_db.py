@@ -200,7 +200,7 @@ def get_sample_dealers():
             "verified": True
         },
         {
-            "name": "Al-Nour Cars",
+            "name": "LUX Showroom",
             "location": "Gardens St, Amman",
             "latitude": 31.980,
             "longitude": 35.880,
@@ -210,7 +210,7 @@ def get_sample_dealers():
             "showroom_images": json.dumps([
                 "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?q=80&w=1000"
             ]),
-            "contact_email": "info@alnourcars.jo",
+            "contact_email": "info@luxshowroom.jo",
             "contact_phone": "+962 7 9000 2222",
             "business_hours": json.dumps({"Everyday": "10:00 AM - 10:00 PM"}),
             "description": "Best prices for family sedans and SUVs. We offer financing options.",
