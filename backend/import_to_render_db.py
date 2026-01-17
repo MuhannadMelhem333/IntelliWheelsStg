@@ -178,6 +178,139 @@ def import_to_postgres(database_url: str, cars: list):
     
     conn.close()
 
+def get_sample_dealers():
+    """Return a list of sample dealers."""
+    return [
+        {
+            "name": "Jordan Auto Elite",
+            "location": "Mecca St, Amman",
+            "latitude": 31.975,
+            "longitude": 35.860,
+            "rating": 4.8,
+            "reviews_count": 124,
+            "image_url": "https://images.unsplash.com/photo-1560958089-b8a1929cea89?q=80&w=1000&auto=format&fit=crop",
+            "showroom_images": json.dumps([
+                "https://images.unsplash.com/photo-1485291571150-772bcfc10da5?q=80&w=1000",
+                "https://images.unsplash.com/photo-1562141993-27150e234f96?q=80&w=1000"
+            ]),
+            "contact_email": "sales@jordanautoelite.com",
+            "contact_phone": "+962 7 9000 1111",
+            "business_hours": json.dumps({"Sun-Thu": "9:00 AM - 9:00 PM", "Fri": "2:00 PM - 9:00 PM"}),
+            "description": "Premium luxury vehicles in the heart of Amman. Certified dealer for BMW and Mercedes-Benz.",
+            "verified": True
+        },
+        {
+            "name": "Al-Nour Cars",
+            "location": "Gardens St, Amman",
+            "latitude": 31.980,
+            "longitude": 35.880,
+            "rating": 4.5,
+            "reviews_count": 89,
+            "image_url": "https://images.unsplash.com/photo-1581458763581-291752b04753?q=80&w=1000",
+            "showroom_images": json.dumps([
+                "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?q=80&w=1000"
+            ]),
+            "contact_email": "info@alnourcars.jo",
+            "contact_phone": "+962 7 9000 2222",
+            "business_hours": json.dumps({"Everyday": "10:00 AM - 10:00 PM"}),
+            "description": "Best prices for family sedans and SUVs. We offer financing options.",
+            "verified": True
+        },
+        {
+            "name": "Zarqa Free Zone Motors",
+            "location": "Zarqa Free Zone",
+            "latitude": 32.067,
+            "longitude": 36.140,
+            "rating": 4.2,
+            "reviews_count": 215,
+            "image_url": "https://images.unsplash.com/photo-1596701103001-f2fdb3ca511c?q=80&w=1000",
+            "showroom_images": json.dumps([]),
+            "contact_email": "contact@zarqafreezone.com",
+            "contact_phone": "+962 7 9000 3333",
+            "business_hours": json.dumps({"Sun-Thu": "8:00 AM - 5:00 PM"}),
+            "description": "Direct imports from Korea and USA. Unbeatable wholesale prices.",
+            "verified": False
+        },
+        {
+            "name": "Royal Hybrid Center",
+            "location": "Abdallah Ghosheh St, Amman",
+            "latitude": 31.968,
+            "longitude": 35.850,
+            "rating": 4.9,
+            "reviews_count": 56,
+            "image_url": "https://images.unsplash.com/photo-1619405399517-d7fce0f13302?q=80&w=1000",
+            "showroom_images": json.dumps([
+                 "https://images.unsplash.com/photo-1550355291-bbee04a92027?q=80&w=1000"
+            ]),
+            "contact_email": "service@royalhybrid.com",
+            "contact_phone": "+962 7 9000 4444",
+            "business_hours": json.dumps({"Sat-Thu": "9:30 AM - 8:30 PM"}),
+            "description": "Specialists in Hybrid and Electric Vehicles. Toyota, Lexus, and Tesla available.",
+            "verified": True
+        },
+        {
+            "name": "Aqaba Auto Port",
+            "location": "Aqaba",
+            "latitude": 29.530,
+            "longitude": 35.000,
+            "rating": 4.0,
+            "reviews_count": 32,
+            "image_url": "https://images.unsplash.com/photo-1574766795819-3fde6eb2a36b?q=80&w=1000",
+            "showroom_images": json.dumps([]),
+            "contact_email": "sales@aqabaauto.com",
+            "contact_phone": "+962 3 200 5555",
+            "business_hours": json.dumps({"Sun-Thu": "9:00 AM - 6:00 PM"}),
+            "description": "Your gateway to tax-free cars in Aqaba Special Economic Zone.",
+            "verified": True
+        }
+    ]
+
+def import_dealers_to_postgres(database_url: str):
+    """Import sample dealers to PostgreSQL database."""
+    # Fix Render's postgres:// URL to postgresql://
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        
+    print(f"\n🏢 Checking Dealers table...")
+    conn = psycopg2.connect(database_url)
+    cursor = conn.cursor()
+    
+    # Check if dealers table exists and has data
+    cursor.execute("SELECT COUNT(*) FROM dealers")
+    existing_count = cursor.fetchone()[0]
+    
+    if existing_count > 0:
+        if os.environ.get('FORCE_REIMPORT'):
+            print(f"⚠️  Database has {existing_count} dealers. FORCE_REIMPORT is set. Clearing data...")
+            cursor.execute("DELETE FROM dealers")
+            conn.commit()
+        else:
+            print(f"✅ Database already has {existing_count} dealers. Skipping dealer import.")
+            conn.close()
+            return
+
+    dealers = get_sample_dealers()
+    print(f"📥 Importing {len(dealers)} sample dealers...")
+    
+    for dealer in dealers:
+        cursor.execute("""
+            INSERT INTO dealers (
+                name, location, latitude, longitude, rating, reviews_count, 
+                image_url, showroom_images, contact_email, contact_phone, 
+                business_hours, description, verified, created_at
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        """, (
+            dealer['name'], dealer['location'], dealer['latitude'], dealer['longitude'],
+            dealer['rating'], dealer['reviews_count'], dealer['image_url'],
+            dealer['showroom_images'], dealer['contact_email'], dealer['contact_phone'],
+            dealer['business_hours'], dealer['description'], dealer['verified']
+        ))
+    
+    conn.commit()
+    print(f"✅ Imported {len(dealers)} sample dealers!")
+    conn.close()
+
 def main():
     print("🚗 IntelliWheels - Import to Render PostgreSQL")
     print("=" * 50)
@@ -197,8 +330,11 @@ def main():
     # Import to PostgreSQL
     import_to_postgres(database_url, cars)
     
-    print("\n🎉 Done! Your Render database now has the car data.")
-    print("   Refresh your website to see the cars!")
+    # Import Dealers
+    import_dealers_to_postgres(database_url)
+    
+    print("\n🎉 Done! Your Render database now has the car and dealer data.")
+    print("   Refresh your website to see the contents!")
 
 if __name__ == "__main__":
     main()
